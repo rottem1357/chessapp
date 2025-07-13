@@ -1,99 +1,121 @@
-# Project Workflow Guide
+# Solo Developer Workflow Guide
 
 ## 🔄 Development Workflow
 
-This guide outlines the development workflow for the Chess App project, including processes, procedures, and best practices.
+This guide outlines the streamlined development workflow for the Chess App project as a solo developer using the **macro/micro hierarchy** approach.
+
+## 🏗️ Macro/Micro Architecture
+
+### MACRO Level (Project Management)
+- **Strategic Control**: High-level project direction and coordination
+- **Assignment Creation**: Defines what needs to be done, not how
+- **Cross-Role Coordination**: Ensures alignment between roles
+- **Quality Gates**: Establishes acceptance criteria and deliverables
+
+### MICRO Level (Role Workspaces)
+- **Implementation Details**: How tasks are executed technically
+- **Task Breakdown**: Detailed implementation steps
+- **Technical Decisions**: Architecture and technology choices
+- **Progress Tracking**: Day-to-day task management
 
 ## 📋 Project Management Process
 
-### 1. Strategic Planning
-- **Frequency**: Monthly
-- **Participants**: Product Owner, Tech Lead, Stakeholders
-- **Deliverables**: Updated roadmap, release planning
+### 1. Strategic Planning (MACRO)
+- **Frequency**: Weekly review, monthly deep dive
+- **Focus**: Feature prioritization, technical roadmap
+- **Deliverables**: Updated roadmap, next sprint planning
 - **Location**: `strategy/` directory
 
-### 2. Release Planning
-- **Frequency**: Per release cycle
-- **Participants**: Development team, Product Owner
-- **Deliverables**: Release specifications, feature breakdown
-- **Location**: `releases/` directory
+### 2. Assignment Creation (MACRO)
+- **Frequency**: Per sprint cycle (every 2 weeks)
+- **Focus**: Convert strategic goals into role-based assignments
+- **Deliverables**: Role assignments with acceptance criteria
+- **Location**: `assignments/` directory
 
-### 3. Epic Management
-- **Frequency**: As needed
-- **Participants**: Tech Lead, Feature owners
-- **Deliverables**: Epic specifications, technical requirements
-- **Location**: `epics/` directory
+### 3. Role Implementation (MICRO)
+- **Frequency**: Daily execution
+- **Focus**: Detailed task implementation and technical execution
+- **Deliverables**: Working features meeting assignment criteria
+- **Location**: `../backend/`, `../frontend/`, `../qa/`, `../devops/` directories
 
-### 4. Task Distribution
-- **Frequency**: Sprint planning
-- **Participants**: Frontend, Backend, DevOps teams
-- **Deliverables**: Task assignments, effort estimates
-- **Location**: `task-distribution/` directory
+### 4. Progress Coordination (MACRO)
+- **Frequency**: Weekly review, daily check-ins
+- **Focus**: Cross-role coordination and dependency management
+- **Deliverables**: Status updates, blocker resolution
+- **Location**: Assignment progress tracking
 
-## 🎯 Sprint Workflow
+## 🎯 Solo Developer Workflow
 
-### Sprint Planning (Every 2 weeks)
-1. **Review Completed Tasks**
-   - Update task status in respective files
-   - Archive completed items
-   - Document lessons learned
+### Assignment-Based Development Cycle
+1. **Project Management Role (MACRO)**
+   - Review strategic goals and business requirements
+   - Create macro-level assignments for each role
+   - Define acceptance criteria and deliverables
+   - Set priorities and timelines
 
-2. **Prioritize New Tasks**
-   - Review product backlog
-   - Assess technical dependencies
-   - Estimate effort requirements
+2. **Role Switch to Implementation (MICRO)**
+   - Move to appropriate role workspace (`../backend/`, `../frontend/`, etc.)
+   - Break down assignment into detailed implementation tasks
+   - Execute tasks with full technical autonomy
+   - Track progress in role-specific task files
 
-3. **Assign Tasks**
-   - Distribute tasks to appropriate teams
-   - Update task files with assignments
-   - Set sprint goals and deadlines
+3. **Progress Reporting (MACRO)**
+   - Switch back to Project Management role
+   - Review progress across all roles
+   - Identify and resolve cross-role dependencies
+   - Update assignment status and metrics
 
-4. **Communication**
-   - Sprint kickoff meeting
-   - Task clarification sessions
-   - Risk assessment and mitigation
+4. **Cycle Continuation**
+   - Continue with next priority role or assignment
+   - Maintain separation between macro and micro concerns
+   - Focus on deliverables rather than process overhead
 
-### Daily Workflow
-1. **Morning Standup**
-   - Progress updates from previous day
-   - Current day's priorities
-   - Blockers and dependencies
+### Daily Workflow (Role-Based)
+1. **Morning Planning (Project Management)**
+   - Review assignment progress across all roles
+   - Identify highest priority role for the day
+   - Check for blockers and dependencies
 
-2. **Development Work**
-   - Follow coding standards
-   - Write tests for new features
-   - Document code changes
+2. **Role-Focused Development (MICRO)**
+   - Move to role workspace (`../backend/tasks/`, `../frontend/tasks/`, etc.)
+   - Focus on detailed implementation tasks
+   - Make technical decisions with full autonomy
+   - Update task progress in role workspace
 
-3. **Collaboration**
-   - Code reviews
-   - Integration coordination
-   - Technical discussions
-
-4. **End-of-Day**
-   - Update task progress
-   - Commit code changes
-   - Prepare for next day
-
-### Sprint Review (Every 2 weeks)
-1. **Demo Completed Features**
-   - Feature demonstrations
-   - Stakeholder feedback
-   - User acceptance testing
-
-2. **Retrospective**
-   - Process improvements
-   - Team feedback
-   - Action items for next sprint
-
-3. **Documentation Update**
-   - Update project documentation
-   - Archive completed tasks
-   - Update release notes
+3. **End-of-Day Review (Project Management)**
+   - Update assignment status in `assignments/` directory
+   - Plan next day's role focus
+   - Escalate any blockers or issues
 
 ## 📂 File Management
 
-### Creating New Items
+### Creating New Assignments (MACRO)
+1. **Assignment Creation**
+   - Define assignment in `assignments/[role]-assignments.md`
+   - Include deliverables, acceptance criteria, timeline
+   - Set priority and dependencies
+   - Update assignment distribution tracker
 
+2. **Assignment Handoff**
+   - Assignment appears in role workspace
+   - Role reviews and accepts assignment
+   - Role creates detailed implementation plan
+   - Role begins execution in workspace
+
+### Role Workspace Management (MICRO)
+1. **Task Breakdown**
+   - Create detailed tasks in `../[role]/tasks/`
+   - Break assignment into implementable steps
+   - Set technical priorities and dependencies
+   - Track progress at micro level
+
+2. **Implementation Documentation**
+   - Document technical decisions in role workspace
+   - Maintain API specs, designs, test plans
+   - Keep role-specific notes and progress
+   - Update assignment status regularly
+
+### Creating New Strategic Items (MACRO)
 #### For Epics
 1. Copy `docs/templates/epic-template.md`
 2. Rename to `epic-[feature-name].md`
@@ -105,12 +127,6 @@ This guide outlines the development workflow for the Chess App project, includin
 2. Rename to `v[version]-[name].md`
 3. Place in `releases/` directory
 4. Update release timeline in roadmap
-
-#### For Tasks
-1. Add to appropriate team file in `task-distribution/`
-2. Include priority, effort estimate, and dependencies
-3. Update team capacity planning
-4. Link to related epics or releases
 
 ### Updating Existing Items
 
@@ -127,56 +143,50 @@ This guide outlines the development workflow for the Chess App project, includin
 - **Medium**: Nice to have for current release
 - **Low**: Future consideration
 
-## 🤝 Team Coordination
+## 🎭 Multi-Role Development
 
-### Frontend Team Workflow
-1. **Task Assignment**
-   - Review `task-distribution/frontend-tasks.md`
-   - Update task status and progress
-   - Coordinate with design team
+### Macro/Micro Role Separation
+The new structure provides clear separation between strategic oversight and detailed implementation:
 
-2. **Development Process**
-   - Create feature branches
-   - Implement components and features
-   - Write unit tests
-   - Update documentation
+#### 📋 Project Management Role (MACRO)
+- **Focus**: Strategic direction, assignment creation, cross-role coordination
+- **Workspace**: `project-management/` directory
+- **Responsibilities**: Create assignments, track progress, resolve blockers
+- **Mindset**: Strategic, coordinating, outcome-focused
 
-3. **Integration**
-   - Coordinate with backend team
-   - Test API integrations
-   - Ensure responsive design
-   - Performance optimization
+#### 👨‍💻 Frontend Developer Role (MICRO)
+- **Focus**: User interface, user experience, React components
+- **Workspace**: `../frontend/` directory
+- **Tasks**: UI design, component development, styling, responsive design
+- **Tools**: React, CSS, Storybook, browser dev tools
+- **Mindset**: User-centric, visual design, accessibility
 
-### Backend Team Workflow
-1. **Task Assignment**
-   - Review `task-distribution/backend-tasks.md`
-   - Update task status and progress
-   - Coordinate with database team
+#### 🔧 Backend Developer Role (MICRO)
+- **Focus**: Server logic, APIs, database management
+- **Workspace**: `../backend/` directory
+- **Tasks**: API development, database design, server configuration
+- **Tools**: Node.js, Express, database tools, API testing
+- **Mindset**: Performance, scalability, data integrity
 
-2. **Development Process**
-   - Create feature branches
-   - Implement APIs and services
-   - Write unit and integration tests
-   - Update API documentation
+#### 🧪 QA Engineer Role (MICRO)
+- **Focus**: Testing, quality assurance, bug prevention
+- **Workspace**: `../qa/` directory
+- **Tasks**: Test writing, manual testing, bug reporting, quality metrics
+- **Tools**: Jest, Cypress, testing frameworks, debugging tools
+- **Mindset**: Quality first, edge cases, user scenarios
 
-3. **Integration**
-   - Coordinate with frontend team
-   - Test API endpoints
-   - Ensure data consistency
-   - Performance optimization
+#### 🚀 DevOps Engineer Role (MICRO)
+- **Focus**: Deployment, monitoring, infrastructure
+- **Workspace**: `../devops/` directory
+- **Tasks**: CI/CD, deployment scripts, monitoring, performance
+- **Tools**: Docker, deployment platforms, monitoring tools
+- **Mindset**: Automation, reliability, monitoring
 
-### Shared Responsibilities
-1. **Review Process**
-   - Code reviews for all changes
-   - Integration testing
-   - Security review
-   - Performance testing
-
-2. **Documentation**
-   - Update technical documentation
-   - Maintain API specifications
-   - Update user guides
-   - Keep README files current
+### Role Switching Strategy
+1. **Assignment-Driven Focus**: Switch roles based on current assignment priorities
+2. **Workspace Separation**: Each role has dedicated workspace with focused context
+3. **Minimal Context Switching**: Macro/micro separation reduces cognitive load
+4. **Autonomous Implementation**: Roles have full control over technical decisions
 
 ## 🔄 Version Control
 
@@ -194,23 +204,23 @@ This guide outlines the development workflow for the Chess App project, includin
   - `fix(game): resolve move validation bug`
   - `docs(api): update authentication endpoints`
 
-### Code Review Process
-1. **Create Pull Request**
-   - Descriptive title and description
-   - Link to related issues or tasks
-   - Include testing instructions
+### Solo Code Review Process
+1. **Create Feature Branch**
+   - Descriptive branch name with role context
+   - Link to related tasks or epics
+   - Include implementation notes
 
-2. **Review Requirements**
-   - At least one team member approval
-   - All tests passing
+2. **Self-Review Requirements**
+   - Review code from different role perspectives
+   - All tests passing (QA role validation)
    - Code quality checks passing
-   - Security review if needed
+   - Security review from DevOps perspective
 
 3. **Merge Process**
    - Squash commits for clean history
-   - Update task status
-   - Deploy to staging environment
-   - Verify functionality
+   - Update task status in role-specific files
+   - Deploy to staging environment (DevOps role)
+   - Verify functionality from user perspective
 
 ## 🧪 Testing Strategy
 
@@ -226,23 +236,29 @@ This guide outlines the development workflow for the Chess App project, includin
 - **E2E Tests**: Critical user paths
 - **Performance Tests**: All major features
 
-### Testing Workflow
-1. **Test Planning**
-   - Define test scenarios
-   - Create test data
-   - Set up test environment
+### Role-Based Testing Workflow
+1. **Test Planning (QA Role)**
+   - Define test scenarios from user perspective
+   - Create test data and test environment setup
+   - Plan testing approach for each feature
 
-2. **Test Execution**
-   - Run automated tests
-   - Manual testing for edge cases
-   - Performance validation
-   - Security testing
+2. **Test Implementation (Developer + QA Role)**
+   - Write unit tests during development
+   - Implement integration tests for API endpoints
+   - Create E2E tests for user workflows
+   - Set up performance benchmarks
 
-3. **Test Results**
-   - Document test results
-   - Report and track bugs
-   - Verify fixes
-   - Update test cases
+3. **Test Execution (QA Role)**
+   - Run automated test suites
+   - Perform manual testing for edge cases
+   - Validate performance from DevOps perspective
+   - Conduct security testing
+
+4. **Test Results (QA Role)**
+   - Document test results and coverage
+   - Report and track bugs with developer context
+   - Verify fixes from multiple role perspectives
+   - Update test cases based on learnings
 
 ## 📊 Quality Assurance
 
@@ -271,66 +287,67 @@ This guide outlines the development workflow for the Chess App project, includin
 2. **Staging**: Production-like testing environment
 3. **Production**: Live user environment
 
-### Deployment Steps
-1. **Pre-deployment**
-   - Run all tests
-   - Security scan
+### Role-Based Deployment Process
+1. **Pre-deployment (QA + DevOps Role)**
+   - Run all tests from QA perspective
+   - Security scan with DevOps focus
    - Performance validation
    - Backup current system
 
-2. **Deployment**
-   - Deploy to staging
-   - Smoke testing
-   - Deploy to production
-   - Monitor system health
+2. **Deployment (DevOps Role)**
+   - Deploy to staging environment
+   - Smoke testing with QA mindset
+   - Deploy to production with monitoring
+   - Monitor system health and performance
 
-3. **Post-deployment**
-   - Verify functionality
-   - Monitor performance
-   - Check error rates
-   - Update documentation
+3. **Post-deployment (All Roles)**
+   - Verify functionality from user perspective (Frontend)
+   - Monitor performance and APIs (Backend)
+   - Check error rates and quality metrics (QA)
+   - Ensure monitoring and alerting work (DevOps)
+   - Update documentation across all roles
 
-## 📈 Monitoring and Feedback
+## 📈 Solo Development Feedback Loops
 
-### Performance Monitoring
-- **Application Performance**: Response times, throughput
-- **System Performance**: CPU, memory, disk usage
-- **User Experience**: Page load times, error rates
-- **Business Metrics**: User engagement, feature usage
+### Multi-Role Performance Monitoring
+- **Application Performance**: Monitor from Backend role perspective
+- **User Experience**: Evaluate from Frontend role perspective  
+- **System Performance**: Track from DevOps role perspective
+- **Quality Metrics**: Analyze from QA role perspective
 
-### Feedback Loops
-- **User Feedback**: Bug reports, feature requests
-- **Team Feedback**: Retrospectives, process improvements
-- **Stakeholder Feedback**: Business requirements, priorities
-- **Technical Feedback**: Code reviews, architecture decisions
+### Self-Feedback Mechanisms
+- **Code Reviews**: Review own code from different role perspectives
+- **Testing**: Validate work from QA role mindset
+- **User Experience**: Evaluate features from end-user perspective
+- **Technical Debt**: Assess from all roles for maintainability
 
-### Continuous Improvement
-- **Regular Reviews**: Monthly process reviews
-- **Metrics Analysis**: Performance and quality metrics
-- **Process Updates**: Workflow improvements
-- **Tool Evaluation**: New tools and technologies
+### Continuous Improvement Process
+- **Weekly Role Reviews**: Assess effectiveness of each role
+- **Monthly Process Reviews**: Evaluate role-switching efficiency
+- **Quarterly Retrospectives**: Plan improvements for role management
+- **Tool Evaluation**: Assess tools from each role perspective
 
-## 📋 Communication Guidelines
+## 📋 Solo Developer Communication
 
-### Meeting Types
-- **Daily Standup**: 15 minutes, progress and blockers
-- **Sprint Planning**: 2 hours, task planning and assignment
-- **Sprint Review**: 1 hour, demo and feedback
-- **Retrospective**: 1 hour, process improvement
+### Self-Documentation Practices
+- **Daily Notes**: Record progress and decisions from current role
+- **Role Transition Notes**: Document context when switching roles
+- **Decision Log**: Track important decisions with role context
+- **Learning Journal**: Note new skills and insights from each role
 
-### Communication Channels
-- **Slack**: Day-to-day communication
-- **Email**: Formal communications
-- **Video Calls**: Complex technical discussions
-- **Documentation**: Persistent knowledge sharing
+### External Communication
+- **Progress Updates**: Share progress from multi-role perspective
+- **Stakeholder Updates**: Present work from relevant role viewpoint
+- **Community Engagement**: Participate in discussions from role expertise
+- **Portfolio Documentation**: Showcase work from all role perspectives
 
-### Escalation Process
-1. **Team Level**: Discuss with team members
-2. **Tech Lead**: Escalate to technical leadership
-3. **Product Owner**: Business decision required
-4. **Stakeholders**: Strategic decisions
+### Knowledge Management
+- **Role-Specific Documentation**: Maintain docs for each role
+- **Cross-Role Integration**: Document how roles interact
+- **Best Practices**: Record effective practices for each role
+- **Lessons Learned**: Capture insights from role-switching experience
 
 ---
 **Last Updated**: July 13, 2025  
 **Next Review**: July 20, 2025  
-**Document Owner**: Project Management Team
+**Document Owner**: Solo Developer (All Roles)

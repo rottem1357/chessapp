@@ -28,13 +28,22 @@
   - `epic-game-analysis.md`
 - **Location**: `epics/` directory
 
-#### Task Distribution Files
-- **Format**: `[team]-tasks.md`
+#### Assignment Files
+- **Format**: `[role]-assignments.md`
 - **Examples**:
-  - `frontend-tasks.md`
-  - `backend-tasks.md`
-  - `shared-tasks.md`
-- **Location**: `task-distribution/` directory
+  - `frontend-assignments.md`
+  - `backend-assignments.md`
+  - `qa-assignments.md`
+  - `devops-assignments.md`
+- **Location**: `assignments/` directory
+
+#### Role Workspace Files
+- **Format**: `[description].md`
+- **Examples**:
+  - `current-assignment-be-001.md`
+  - `README.md`
+  - `api-specifications.md`
+- **Location**: `../[role]/` directories
 
 ### Code File Naming
 
