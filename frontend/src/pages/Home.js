@@ -130,9 +130,9 @@ const Home = () => {
       console.log('Response data:', data);
 
       if (data.success) {
-        navigate(`/ai-game/${data.game.id}`, {
+        navigate(`/ai-game/${data.data.id}`, {
           state: {
-            gameId: data.game.id,
+            gameId: data.data.id,
             difficulty: selectedDifficulty,
             playerColor: selectedColor
           }

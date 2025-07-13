@@ -17,7 +17,7 @@ const DifficultySelector = ({ onSelect, selectedDifficulty = 'intermediate' }) =
       const data = await response.json();
 
       if (data.success) {
-        setDifficulties(data.difficulties);
+        setDifficulties(data.data || []);
       } else {
         setError('Failed to load difficulty levels');
       }
@@ -60,7 +60,7 @@ const DifficultySelector = ({ onSelect, selectedDifficulty = 'intermediate' }) =
     <div className="difficulty-selector">
       <h3>Select Difficulty</h3>
       <div className="difficulty-grid">
-        {difficulties.map((difficulty) => (
+        {difficulties && difficulties.length > 0 ? difficulties.map((difficulty) => (
           <div
             key={difficulty.value}
             className={getDifficultyClass(difficulty.value)}
@@ -98,7 +98,11 @@ const DifficultySelector = ({ onSelect, selectedDifficulty = 'intermediate' }) =
               </div>
             )}
           </div>
-        ))}
+        )) : (
+          <div className="no-difficulties">
+            No difficulty levels available
+          </div>
+        )}
       </div>
     </div>
   );

@@ -35,15 +35,15 @@ const AIGame = () => {
       console.log('Fetch response data:', data);
 
       if (data.success) {
-        setGame(data.game);
-        chess.load(data.game.fen);
-        setGamePosition(data.game.fen);
+        setGame(data.data);
+        chess.load(data.data.fen);
+        setGamePosition(data.data.fen);
         setGameInfo({
-          turn: data.game.turn,
-          isCheck: data.game.isCheck,
-          isCheckmate: data.game.isCheckmate,
-          isStalemate: data.game.isStalemate,
-          isDraw: data.game.isDraw
+          turn: data.data.turn,
+          isCheck: data.data.isCheck,
+          isCheckmate: data.data.isCheckmate,
+          isStalemate: data.data.isStalemate,
+          isDraw: data.data.isDraw
         });
       } else {
         setError(data.message || 'Failed to load game');
@@ -110,23 +110,23 @@ const AIGame = () => {
 
       if (data.success) {
         // Update game state with server response
-        chess.load(data.gameState.fen);
-        setGamePosition(data.gameState.fen);
+        chess.load(data.data.gameState.fen);
+        setGamePosition(data.data.gameState.fen);
         setGameInfo({
-          turn: data.gameState.turn,
-          isCheck: data.gameState.isCheck,
-          isCheckmate: data.gameState.isCheckmate,
-          isStalemate: data.gameState.isStalemate,
-          isDraw: data.gameState.isDraw
+          turn: data.data.gameState.turn,
+          isCheck: data.data.gameState.isCheck,
+          isCheckmate: data.data.gameState.isCheckmate,
+          isStalemate: data.data.gameState.isStalemate,
+          isDraw: data.data.gameState.isDraw
         });
 
         // Highlight AI move if available
-        if (data.aiMove) {
-          setLastMove({ from: data.aiMove.from, to: data.aiMove.to });
+        if (data.data.aiMove) {
+          setLastMove({ from: data.data.aiMove.from, to: data.data.aiMove.to });
         }
 
         // Update game status
-        if (data.gameState.isGameOver) {
+        if (data.data.gameState.isGameOver) {
           setGame(prev => ({ ...prev, status: 'ended' }));
         }
       } else {
