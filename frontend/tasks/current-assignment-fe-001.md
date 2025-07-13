@@ -30,10 +30,10 @@ This directory contains detailed implementation tasks for frontend assignments.
    - Create reusable input components
    - Design button components
    - Add loading states and spinners
-
-#### 🔄 IN PROGRESS
-4. **Backend Integration**
-   - Connect forms to backend API
+   Connect forms to backend API
+   Implement error handling
+   Add success/failure notifications
+   Set up JWT token storage
    - Implement error handling
    - Add success/failure notifications
    - Set up JWT token storage
@@ -44,41 +44,45 @@ This directory contains detailed implementation tasks for frontend assignments.
    - Add redirect logic
 
 #### 📋 TODO
-6. **Password Reset UI**
-   - Design password reset form
+
+6. **Authentication Forms & Pages**
+   - Create login form component
+   - Create registration form component
+   - Build login page and registration page in `src/pages`
+   - Add navigation to/from auth pages
+
+7. **Authentication Context & Provider**
+   - Implement React Context for auth state
+   - Provide login/logout/register actions
+   - Store JWT token securely (localStorage)
+
+8. **Protected Route Component**
+   - Create higher-order component for route protection
+   - Redirect unauthenticated users to login
+
+9. **Password Reset UI**
+   - Design password reset request form
    - Create reset confirmation page
    - Add email verification flow
 
-7. **User Profile Management**
-   - Create user profile page
-   - Add profile editing functionality
-   - Implement avatar upload
+10. **User Profile Management**
+    - Create user profile page
+    - Add profile editing functionality
+    - Implement avatar upload
 
-8. **Accessibility & Polish**
-   - Add ARIA labels and roles
-   - Implement keyboard navigation
-   - Add focus management
+11. **Accessibility & Polish**
+    - Add ARIA labels and roles
+    - Implement keyboard navigation
+    - Add focus management
 
-9. **Testing & Validation**
-   - Write component tests
-   - Add E2E authentication tests
-   - Cross-browser testing
-
-### Task Planning Notes:
-- Backend integration blocked until auth endpoints ready
+12. **Testing & Validation**
+    - Write component tests
+    - Add E2E authentication tests
 - Password reset depends on backend completion
 - Profile management can be done in parallel
-- Accessibility should be ongoing
-
-### Technical Decisions Made:
-- Using React Context for authentication state
 - localStorage for JWT token persistence
 - React Router for protected routes
-- React Hook Form for form management
-
-### Integration Points:
 - Backend auth endpoints needed by July 24
-- QA testing starts July 26
 - DevOps deployment pipeline by July 28
 
 ---
