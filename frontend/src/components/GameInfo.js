@@ -5,15 +5,21 @@ import './GameInfo.css';
 
 /**
  * GameInfo Component
- * 
- * Displays comprehensive game information including players, status, and statistics
- * Features:
- * - Player information with colors and ratings
- * - Game status and turn indicators
- * - Game statistics and timing
- * - Move history summary
- * - Enhanced visual feedback
+ * @component
+ * @description Displays comprehensive game information including players, status, and statistics.
+ * @param {object} props
+ * @param {string} props.playerColor - The color of the current player.
+ * @param {string} props.opponent - The opponent's name.
+ * @param {boolean} props.isMyTurn - Whether it's the current player's turn.
+ * @param {string} props.gameStatus - The current game status.
+ * @param {string} props.winner - The winner's color.
+ * @param {number} props.gameStartTime - Timestamp when the game started.
+ * @param {number} props.lastMoveTime - Timestamp of the last move.
+ * @param {Array} props.moveHistory - Array of move objects.
+ * @param {number} props.playerRating - Rating of the current player.
+ * @param {number} props.opponentRating - Rating of the opponent.
  */
+import PropTypes from 'prop-types';
 const GameInfo = ({ 
   playerColor, 
   opponent, 
@@ -31,7 +37,7 @@ const GameInfo = ({
     const currentTime = Date.now();
     const gameDuration = gameStartTime ? currentTime - gameStartTime : 0;
     const timeSinceLastMove = lastMoveTime ? currentTime - lastMoveTime : 0;
-    
+    // ...existing code...
     return {
       duration: gameDuration,
       timeSinceLastMove,
@@ -71,7 +77,6 @@ const GameInfo = ({
 
   // Get opponent color
   const opponentColor = playerColor === PLAYER_COLORS.WHITE ? PLAYER_COLORS.BLACK : PLAYER_COLORS.WHITE;
-
   return (
     <div className="game-info">
       {/* Players Section */}
@@ -79,7 +84,7 @@ const GameInfo = ({
         <div className={`player-card ${playerColor === PLAYER_COLORS.WHITE ? 'white' : 'black'} ${isMyTurn ? 'active' : ''}`}>
           <div className="player-header">
             <div className="player-avatar">
-              <span className="player-icon">👤</span>
+              <span className="player-icon">464</span>
             </div>
             <div className="player-details">
               <span className="player-name">You</span>
@@ -91,11 +96,11 @@ const GameInfo = ({
             <span className="moves">Moves: {gameStats.playerMoves}</span>
           </div>
         </div>
-        
+        {/* VS Indicator */}
         <div className="vs-indicator">
           <span className="vs-text">VS</span>
         </div>
-        
+
         <div className={`player-card ${opponentColor === PLAYER_COLORS.WHITE ? 'white' : 'black'} ${!isMyTurn && gameStatus === GAME_STATUS.ACTIVE ? 'active' : ''}`}>
           <div className="player-header">
             <div className="player-avatar">
@@ -112,13 +117,13 @@ const GameInfo = ({
           </div>
         </div>
       </div>
-      
+
       {/* Game Status Section */}
       <div className="status-section">
         <div className={`status-indicator ${getStatusClass}`}>
           <span className="status-text">{getStatusText}</span>
         </div>
-        
+
         {gameStatus === GAME_STATUS.ACTIVE && (
           <div className="turn-timer">
             {gameStats.timeSinceLastMove > 0 && (
@@ -138,12 +143,12 @@ const GameInfo = ({
             {gameStats.duration > 0 ? formatDuration(gameStats.duration) : '--'}
           </span>
         </div>
-        
+
         <div className="stat-item">
           <span className="stat-label">Total Moves</span>
           <span className="stat-value">{gameStats.totalMoves}</span>
         </div>
-        
+
         {gameStartTime && (
           <div className="stat-item">
             <span className="stat-label">Started</span>
@@ -164,6 +169,19 @@ const GameInfo = ({
       )}
     </div>
   );
+};
+
+GameInfo.propTypes = {
+  playerColor: PropTypes.string.isRequired,
+  opponent: PropTypes.string,
+  isMyTurn: PropTypes.bool,
+  gameStatus: PropTypes.string.isRequired,
+  winner: PropTypes.string,
+  gameStartTime: PropTypes.number,
+  lastMoveTime: PropTypes.number,
+  moveHistory: PropTypes.array,
+  playerRating: PropTypes.number,
+  opponentRating: PropTypes.number,
 };
 
 export default GameInfo;

@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import { handleError, logError } from '../utils/errorHandler';
 import './DifficultySelector.css';
 
 /**
  * DifficultySelector Component
- * 
- * AI difficulty selection interface with enhanced features
- * Features:
- * - Predefined difficulty levels with detailed stats
- * - Visual feedback and accessibility
- * - Error handling and loading states
- * - Responsive design
- * - Detailed difficulty descriptions
+ * @component
+ * @description AI difficulty selection interface with enhanced features.
+ * @param {object} props
+ * @param {function} props.onSelect - Callback when a difficulty is selected.
+ * @param {string} props.selectedDifficulty - Currently selected difficulty.
+ * @param {boolean} props.disabled - Whether selection is disabled.
+ * @param {boolean} props.showStats - Whether to show difficulty stats.
  */
 const DifficultySelector = ({ 
   onSelect, 
@@ -27,7 +27,6 @@ const DifficultySelector = ({
   useEffect(() => {
     try {
       setLoading(true);
-      
       // Use predefined difficulties from constants
       const difficultyLevels = [
         {
@@ -82,6 +81,12 @@ const DifficultySelector = ({
       setLoading(false);
     }
   }, []);
+DifficultySelector.propTypes = {
+  onSelect: PropTypes.func.isRequired,
+  selectedDifficulty: PropTypes.string,
+  disabled: PropTypes.bool,
+  showStats: PropTypes.bool,
+};
 
   // Handle difficulty selection
   const handleDifficultySelect = useCallback((difficulty) => {

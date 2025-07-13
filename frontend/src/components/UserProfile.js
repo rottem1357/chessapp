@@ -1,8 +1,14 @@
 import React, { useContext, useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { api } from '../services/api';
 import { AuthContext } from './AuthProvider';
 import './UserProfile.css';
 
+/**
+ * UserProfile Component
+ * @component
+ * @description Displays and allows editing of the user's profile.
+ */
 const UserProfile = () => {
   const { user, token } = useContext(AuthContext);
   const [profile, setProfile] = useState(null);
@@ -13,6 +19,7 @@ const UserProfile = () => {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Fetch user profile on mount or when token changes
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -29,14 +36,26 @@ const UserProfile = () => {
     if (token) fetchProfile();
   }, [token]);
 
+  /**
+   * Handles input changes for profile form.
+   * @param {object} e - Input change event
+   */
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  /**
+   * Handles avatar file selection.
+   * @param {object} e - File input change event
+   */
   const handleAvatarChange = (e) => {
     setAvatar(e.target.files[0]);
   };
 
+  /**
+   * Handles profile form submission.
+   * @param {object} e - Form submit event
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -74,6 +93,7 @@ const UserProfile = () => {
           <input id="email" name="email" type="email" value={form.email} onChange={handleChange} />
           <label htmlFor="avatar">Avatar</label>
           <input id="avatar" name="avatar" type="file" accept="image/*" onChange={handleAvatarChange} />
+          {/* Error and success messages */}
           {error && <div className="error">{error}</div>}
           {success && <div className="success">{success}</div>}
           <button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</button>
@@ -83,5 +103,7 @@ const UserProfile = () => {
     </div>
   );
 };
+
+UserProfile.propTypes = {};
 
 export default UserProfile;

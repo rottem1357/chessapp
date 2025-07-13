@@ -10,16 +10,12 @@ import './Home.css';
 
 /**
  * Home Component
- * 
- * Main landing page for the chess application
- * Features:
- * - Game mode selection (Local, AI, Multiplayer)
- * - Player name input with validation
- * - Matchmaking queue management
- * - Enhanced error handling and accessibility
- * - Real-time connection status
+ * @component
+ * @description Main landing page for the chess application.
  */
+import PropTypes from 'prop-types';
 const Home = () => {
+Home.propTypes = {};
   const navigate = useNavigate();
   const socket = useSocket();
   

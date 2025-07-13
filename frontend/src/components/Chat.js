@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import { useSocket } from '../hooks/useSocket';
 import { SOCKET_EVENTS, UI_CONSTANTS } from '../utils/constants';
 import { handleError, logError } from '../utils/errorHandler';
@@ -8,17 +9,21 @@ import './Chat.css';
 
 /**
  * Chat Component
- * 
- * Real-time chat interface for multiplayer games
- * Features:
- * - Real-time message synchronization
- * - Message validation and filtering
- * - Auto-scroll to latest messages
- * - Enhanced accessibility
- * - Typing indicators
- * - Message history persistence
+ * @component
+ * @description Real-time chat interface for multiplayer games.
+ * @param {object} props
+ * @param {string|number} props.gameId - The game ID.
+ * @param {string} props.playerColor - The color of the current player.
+ * @param {string} props.opponent - The opponent's name.
+ * @param {boolean} props.disabled - Whether chat is disabled.
  */
 const Chat = ({ gameId, playerColor, opponent, disabled = false }) => {
+Chat.propTypes = {
+  gameId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  playerColor: PropTypes.string.isRequired,
+  opponent: PropTypes.string,
+  disabled: PropTypes.bool,
+};
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);

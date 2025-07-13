@@ -14,16 +14,12 @@ import './Game.css';
 
 /**
  * Game Component
- * 
- * Handles multiplayer chess game interface with real-time synchronization
- * Features:
- * - Real-time move synchronization via WebSocket
- * - Enhanced error handling and validation
- * - Connection state management
- * - Game state persistence
- * - Improved accessibility
+ * @component
+ * @description Handles multiplayer chess game interface with real-time synchronization.
  */
+import PropTypes from 'prop-types';
 const Game = () => {
+Game.propTypes = {};
   const { gameId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();

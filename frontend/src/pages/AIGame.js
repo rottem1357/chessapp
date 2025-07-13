@@ -5,7 +5,14 @@ import { Chess } from 'chess.js';
 import GameInfo from '../components/GameInfo';
 import './AIGame.css';
 
+/**
+ * AIGame Component
+ * @component
+ * @description Handles AI chess game interface and logic.
+ */
+import PropTypes from 'prop-types';
 const AIGame = () => {
+AIGame.propTypes = {};
   const { gameId } = useParams();
   const navigate = useNavigate();
   const [game, setGame] = useState(null);

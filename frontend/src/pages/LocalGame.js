@@ -4,7 +4,14 @@ import { Chessboard } from 'react-chessboard';
 import { useNavigate } from 'react-router-dom';
 import './LocalGame.css';
 
+/**
+ * LocalGame Component
+ * @component
+ * @description Handles local chess game interface and logic.
+ */
+import PropTypes from 'prop-types';
 const LocalGame = () => {
+LocalGame.propTypes = {};
   const [game, setGame] = useState(new Chess());
   const [gamePosition, setGamePosition] = useState('start');
   const [currentPlayer, setCurrentPlayer] = useState('white');
