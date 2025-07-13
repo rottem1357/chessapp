@@ -1,0 +1,204 @@
+.difficulty-selector {
+  padding: 20px;
+}
+
+.difficulty-selector h3 {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #333;
+  font-size: 24px;
+}
+
+.difficulty-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.difficulty-card {
+  background: #fff;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.difficulty-card:hover {
+  border-color: #2196F3;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.15);
+  transform: translateY(-2px);
+}
+
+.difficulty-card.selected {
+  border-color: #2196F3;
+  background: #f8f9ff;
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.2);
+}
+
+.difficulty-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.difficulty-header h4 {
+  margin: 0;
+  color: #333;
+  font-size: 20px;
+}
+
+.difficulty-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: white;
+}
+
+.difficulty-badge.beginner {
+  background-color: #4CAF50;
+}
+
+.difficulty-badge.intermediate {
+  background-color: #FF9800;
+}
+
+.difficulty-badge.advanced {
+  background-color: #f44336;
+}
+
+.difficulty-badge.expert {
+  background-color: #9C27B0;
+}
+
+.difficulty-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.stat-label {
+  font-weight: 500;
+  color: #666;
+  font-size: 14px;
+}
+
+.stat-value {
+  font-weight: bold;
+  color: #333;
+  font-size: 14px;
+}
+
+.difficulty-description {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.4;
+  margin-bottom: 15px;
+}
+
+.selected-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #4CAF50;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 40px;
+  font-size: 16px;
+}
+
+.error {
+  color: #f44336;
+}
+
+.error button {
+  margin-top: 15px;
+  padding: 8px 16px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.error button:hover {
+  background-color: #1976D2;
+}
+
+/* Difficulty-specific card styling */
+.difficulty-card.beginner {
+  border-left: 4px solid #4CAF50;
+}
+
+.difficulty-card.intermediate {
+  border-left: 4px solid #FF9800;
+}
+
+.difficulty-card.advanced {
+  border-left: 4px solid #f44336;
+}
+
+.difficulty-card.expert {
+  border-left: 4px solid #9C27B0;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .difficulty-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .difficulty-card {
+    padding: 15px;
+  }
+  
+  .difficulty-header h4 {
+    font-size: 18px;
+  }
+  
+  .difficulty-selector h3 {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+}
+
+/* Animation for card selection */
+@keyframes selectCard {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.difficulty-card.selected {
+  animation: selectCard 0.3s ease;
+}

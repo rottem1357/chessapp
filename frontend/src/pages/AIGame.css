@@ -1,0 +1,201 @@
+.ai-game-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.game-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.game-header h2 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.game-meta {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  font-size: 14px;
+  color: #666;
+}
+
+.difficulty {
+  font-weight: bold;
+  color: #2196F3;
+}
+
+.player-color {
+  font-weight: bold;
+  color: #4CAF50;
+}
+
+.game-content {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+.board-container {
+  position: relative;
+  flex: 1;
+  max-width: 600px;
+}
+
+.thinking-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 15px 25px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: bold;
+  z-index: 1000;
+}
+
+.thinking-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ffffff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.game-sidebar {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.game-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background-color: #2196F3;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #1976D2;
+}
+
+.btn-secondary {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.btn-secondary:hover {
+  background-color: #e0e0e0;
+}
+
+.game-result {
+  text-align: center;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  font-weight: bold;
+  color: #333;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 50px;
+  font-size: 18px;
+}
+
+.error {
+  color: #f44336;
+}
+
+.error button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.error button:hover {
+  background-color: #1976D2;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .game-content {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .game-sidebar {
+    flex: none;
+    width: 100%;
+  }
+  
+  .board-container {
+    max-width: 100%;
+  }
+  
+  .game-meta {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+/* Difficulty-specific styling */
+.difficulty-indicator {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.difficulty-beginner {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.difficulty-intermediate {
+  background-color: #FF9800;
+  color: white;
+}
+
+.difficulty-advanced {
+  background-color: #f44336;
+  color: white;
+}
+
+.difficulty-expert {
+  background-color: #9C27B0;
+  color: white;
+}

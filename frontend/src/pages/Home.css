@@ -1,5 +1,5 @@
 .home-container {
-  max-width: 600px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 20px;
 }
@@ -30,6 +30,102 @@
   margin-bottom: 30px;
 }
 
+/* AI Setup Section */
+.ai-setup-section {
+  margin-bottom: 30px;
+}
+
+.ai-setup-section h3 {
+  color: #333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.color-selection {
+  margin-bottom: 30px;
+}
+
+.color-selection h4 {
+  color: #333;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.color-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.color-btn {
+  padding: 12px 24px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  min-width: 80px;
+}
+
+.color-btn:hover {
+  border-color: #2196F3;
+  background: #f8f9ff;
+}
+
+.color-btn.selected {
+  border-color: #2196F3;
+  background: #2196F3;
+  color: white;
+}
+
+.ai-setup-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 30px;
+}
+
+.start-ai-game-btn {
+  padding: 15px 30px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.start-ai-game-btn:hover:not(:disabled) {
+  background: #45a049;
+  transform: translateY(-2px);
+}
+
+.start-ai-game-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.cancel-ai-setup-btn {
+  padding: 15px 30px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.cancel-ai-setup-btn:hover {
+  background: #d32f2f;
+  transform: translateY(-2px);
+}
+
 .game-modes {
   margin-bottom: 30px;
 }
@@ -43,6 +139,7 @@
   display: flex;
   gap: 10px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .mode-btn {
@@ -52,7 +149,20 @@
   border-radius: 4px;
   font-weight: bold;
   text-align: center;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.ai-mode {
+  background: #9C27B0;
+  color: white;
+}
+
+.ai-mode:hover {
+  background: #7B1FA2;
+  transform: translateY(-2px);
 }
 
 .local-mode {

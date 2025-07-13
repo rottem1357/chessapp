@@ -26,6 +26,9 @@ const games = new Map();
 const waitingPlayers = [];
 
 // Routes
+const aiGameRoutes = require('./routes/aiGame');
+app.use('/api/ai', aiGameRoutes);
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running' });
 });
