@@ -1,288 +1,476 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSocket } from '../hooks/useSocket';
 import DifficultySelector from '../components/DifficultySelector';
+import { SOCKET_EVENTS, ERROR_MESSAGES, ROUTES } from '../utils/constants';
+import { handleError, logError } from '../utils/errorHandler';
+import { validatePlayerName, validateForm } from '../utils/validation';
+import { debounce } from '../utils/helpers';
 import './Home.css';
 
+/**
+ * Home Component
+ * 
+ * Main landing page for the chess application
+ * Features:
+ * - Game mode selection (Local, AI, Multiplayer)
+ * - Player name input with validation
+ * - Matchmaking queue management
+ * - Enhanced error handling and accessibility
+ * - Real-time connection status
+ */
 const Home = () => {
+  const navigate = useNavigate();
+  const socket = useSocket();
+  
+  // Component state
   const [playerName, setPlayerName] = useState('');
+  const [selectedGameMode, setSelectedGameMode] = useState('');
+  const [aiDifficulty, setAiDifficulty] = useState('intermediate');
   const [isInQueue, setIsInQueue] = useState(false);
-  const [queuePosition, setQueuePosition] = useState(0);
+  const [queueTime, setQueueTime] = useState(0);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showAISetup, setShowAISetup] = useState(false);
-  const [selectedDifficulty, setSelectedDifficulty] = useState('intermediate');
-  const [selectedColor, setSelectedColor] = useState('white');
-  const [creatingAIGame, setCreatingAIGame] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const socket = useSocket();
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [formErrors, setFormErrors] = useState({});
+  const [gameStats] = useState(null);
 
-  // Check if we should show AI setup from navigation state
+  // Auto-clear errors after 5 seconds
   useEffect(() => {
-    if (location.state?.showAISetup) {
-      setShowAISetup(true);
-      if (location.state.previousDifficulty) {
-        setSelectedDifficulty(location.state.previousDifficulty);
-      }
-      if (location.state.previousColor) {
-        setSelectedColor(location.state.previousColor);
-      }
+    if (error) {
+      const timer = setTimeout(() => {
+        setError('');
+      }, 5000);
+      return () => clearTimeout(timer);
     }
-  }, [location.state]);
+  }, [error]);
 
+  // Queue timer
+  useEffect(() => {
+    let timer;
+    if (isInQueue) {
+      timer = setInterval(() => {
+        setQueueTime(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isInQueue]);
+
+  // Socket connection status
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('queue-joined', (data) => {
-      setIsInQueue(true);
-      setQueuePosition(data.position);
+    const handleConnect = () => {
+      setConnectionStatus('connected');
       setError('');
-      setIsLoading(false);
-    });
+    };
 
-    socket.on('game-started', (data) => {
-      setIsInQueue(false);
-      setIsLoading(false);
-      navigate(`/game/${data.gameId}`, { 
-        state: { 
-          gameId: data.gameId, 
-          color: data.color, 
-          opponent: data.opponent,
-          fen: data.fen
-        } 
-      });
-    });
+    const handleDisconnect = () => {
+      setConnectionStatus('disconnected');
+      if (isInQueue) {
+        setIsInQueue(false);
+        setQueueTime(0);
+        setError(ERROR_MESSAGES.CONNECTION_LOST);
+      }
+    };
 
-    socket.on('error', (data) => {
-      setError(data.message || 'An error occurred');
-      setIsLoading(false);
+    const handleMatchFound = (data) => {
+      try {
+        setIsInQueue(false);
+        setQueueTime(0);
+        setError('');
+        
+        // Navigate to game with match data
+        navigate(ROUTES.GAME.replace(':gameId', data.gameId), {
+          state: {
+            gameId: data.gameId,
+            color: data.color,
+            opponent: data.opponent,
+            fen: data.fen
+          }
+        });
+      } catch (err) {
+        const handledError = handleError(err, 'Failed to join game');
+        setError(handledError.message);
+        logError(handledError);
+      }
+    };
+
+    const handleQueueError = (data) => {
       setIsInQueue(false);
-    });
+      setQueueTime(0);
+      const errorMessage = data.message || ERROR_MESSAGES.QUEUE_ERROR;
+      setError(errorMessage);
+      logError(new Error(`Queue error: ${errorMessage}`));
+    };
+
+    socket.on(SOCKET_EVENTS.CONNECT, handleConnect);
+    socket.on(SOCKET_EVENTS.DISCONNECT, handleDisconnect);
+    socket.on(SOCKET_EVENTS.MATCH_FOUND, handleMatchFound);
+    socket.on(SOCKET_EVENTS.QUEUE_ERROR, handleQueueError);
 
     return () => {
-      socket.off('queue-joined');
-      socket.off('game-started');
-      socket.off('error');
+      socket.off(SOCKET_EVENTS.CONNECT, handleConnect);
+      socket.off(SOCKET_EVENTS.DISCONNECT, handleDisconnect);
+      socket.off(SOCKET_EVENTS.MATCH_FOUND, handleMatchFound);
+      socket.off(SOCKET_EVENTS.QUEUE_ERROR, handleQueueError);
     };
-  }, [socket, navigate]);
+  }, [socket, isInQueue, navigate]);
 
-  const handleJoinQueue = () => {
-    if (!playerName.trim()) {
-      setError('Please enter your name');
-      return;
-    }
-    
-    if (!socket) {
-      setError('Connection not established. Please try again.');
-      return;
-    }
+  // Debounced validation
+  const debouncedValidation = useCallback(
+    (name) => {
+      const debouncedFn = debounce((name) => {
+        const validation = validatePlayerName(name);
+        setFormErrors(prev => ({
+          ...prev,
+          playerName: validation.isValid ? null : validation.error
+        }));
+      }, 300);
+      debouncedFn(name);
+    },
+    []
+  );
 
-    setIsLoading(true);
+  // Handle player name change
+  const handlePlayerNameChange = useCallback((e) => {
+    const value = e.target.value;
+    setPlayerName(value);
+    debouncedValidation(value);
+  }, [debouncedValidation]);
+
+  // Handle game mode selection
+  const handleGameModeSelect = useCallback((mode) => {
+    setSelectedGameMode(mode);
     setError('');
-    
-    socket.emit('join-queue', {
-      name: playerName,
-      rating: 1200
+  }, []);
+
+  // Validate form before submission
+  const validateGameForm = useCallback(() => {
+    const validation = validateForm({
+      playerName,
+      gameMode: selectedGameMode,
+      ...(selectedGameMode === 'ai' && { aiDifficulty })
     });
-  };
 
-  const handleLeaveQueue = () => {
-    setIsInQueue(false);
-    setQueuePosition(0);
-    // You might want to emit a leave-queue event to the server
-  };
+    setFormErrors(validation.errors);
+    return validation.isValid;
+  }, [playerName, selectedGameMode, aiDifficulty]);
 
-  const handlePlayAI = () => {
-    setShowAISetup(true);
-  };
-
-  const handleStartAIGame = async () => {
-    if (!playerName.trim()) {
-      setError('Please enter your name');
-      return;
-    }
-
-    setCreatingAIGame(true);
-    setError('');
-
-    console.log('Starting AI game with:', {
-      difficulty: selectedDifficulty,
-      playerColor: selectedColor,
-      playerId: playerName
-    });
+  // Start local game
+  const handleStartLocalGame = useCallback(() => {
+    if (!validateGameForm()) return;
 
     try {
+      setIsLoading(true);
+      navigate(ROUTES.LOCAL_GAME, {
+        state: { playerName }
+      });
+    } catch (err) {
+      const handledError = handleError(err, 'Failed to start local game');
+      setError(handledError.message);
+      logError(handledError);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [validateGameForm, navigate, playerName]);
+
+  // Start AI game
+  const handleStartAIGame = useCallback(async () => {
+    if (!validateGameForm()) return;
+
+    try {
+      setIsLoading(true);
+      
+      // Create AI game via API
       const response = await fetch('/api/ai/game/new', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          difficulty: selectedDifficulty,
-          playerColor: selectedColor,
+          difficulty: aiDifficulty,
+          playerColor: 'white', // Default to white, can be made configurable
           playerId: playerName
         })
       });
-
-      console.log('Response status:', response.status);
+      
       const data = await response.json();
-      console.log('Response data:', data);
-
+      
       if (data.success) {
+        // Navigate to AI game with the created game ID
         navigate(`/ai-game/${data.data.id}`, {
-          state: {
-            gameId: data.data.id,
-            difficulty: selectedDifficulty,
-            playerColor: selectedColor
+          state: { 
+            playerName,
+            difficulty: aiDifficulty 
           }
         });
       } else {
-        setError(data.message || 'Failed to create AI game');
+        throw new Error(data.message || 'Failed to create AI game');
       }
     } catch (err) {
-      console.error('Error creating AI game:', err);
-      setError('Failed to connect to server');
+      const handledError = handleError(err, 'Failed to start AI game');
+      setError(handledError.message);
+      logError(handledError);
     } finally {
-      setCreatingAIGame(false);
+      setIsLoading(false);
     }
-  };
+  }, [validateGameForm, navigate, playerName, aiDifficulty]);
 
-  const handleCancelAISetup = () => {
-    setShowAISetup(false);
-    setError('');
-  };
+  // Start multiplayer matchmaking
+  const handleStartMultiplayerGame = useCallback(() => {
+    if (!validateGameForm()) return;
+
+    if (connectionStatus !== 'connected') {
+      setError(ERROR_MESSAGES.CONNECTION_REQUIRED);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setQueueTime(0);
+      
+      socket.emit(SOCKET_EVENTS.JOIN_QUEUE, {
+        playerName: playerName.trim()
+      });
+      
+      setIsInQueue(true);
+      setError('');
+    } catch (err) {
+      const handledError = handleError(err, 'Failed to join matchmaking');
+      setError(handledError.message);
+      logError(handledError);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [validateGameForm, connectionStatus, socket, playerName]);
+
+  // Leave queue
+  const handleLeaveQueue = useCallback(() => {
+    try {
+      if (socket) {
+        socket.emit(SOCKET_EVENTS.LEAVE_QUEUE);
+      }
+      setIsInQueue(false);
+      setQueueTime(0);
+      setError('');
+    } catch (err) {
+      const handledError = handleError(err, 'Failed to leave queue');
+      setError(handledError.message);
+      logError(handledError);
+    }
+  }, [socket]);
+
+  // Format queue time for display
+  const formatQueueTime = useCallback((seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  }, []);
+
+  // Get game mode button props
+  const getGameModeButtonProps = useCallback((mode) => ({
+    className: `game-mode-btn ${selectedGameMode === mode ? 'selected' : ''}`,
+    onClick: () => handleGameModeSelect(mode),
+    disabled: isLoading || isInQueue
+  }), [selectedGameMode, isLoading, isInQueue, handleGameModeSelect]);
 
   return (
     <div className="home-container">
       <div className="home-content">
-        <h2>Welcome to Chess App</h2>
-        
+        {/* Header Section */}
+        <div className="home-header">
+          <h1>Welcome to Chess</h1>
+          <p className="home-subtitle">
+            Choose your game mode and start playing!
+          </p>
+        </div>
+
+        {/* Connection Status */}
+        {connectionStatus !== 'connected' && (
+          <div className="connection-status">
+            <div className={`status-indicator ${connectionStatus}`}>
+              {connectionStatus === 'connecting' && <div className="spinner" />}
+              <span>
+                {connectionStatus === 'connecting' ? 'Connecting...' : 'Offline'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Error Alert */}
         {error && (
-          <div className="error-message">
+          <div className="alert alert-error" role="alert">
+            <button 
+              className="close-btn"
+              onClick={() => setError('')}
+              aria-label="Close error message"
+            >
+              ×
+            </button>
             {error}
           </div>
         )}
-        
-        {showAISetup ? (
-          <div className="ai-setup-section">
-            <h3>Play Against AI</h3>
-            
-            <div className="input-group">
-              <label htmlFor="playerName">Enter your name:</label>
-              <input
-                id="playerName"
-                type="text"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                placeholder="Your name"
-                maxLength={20}
+
+        {/* Main Form */}
+        <div className="home-form">
+          {/* Player Name Input */}
+          <div className="form-group">
+            <label htmlFor="playerName">Your Name</label>
+            <input
+              id="playerName"
+              type="text"
+              value={playerName}
+              onChange={handlePlayerNameChange}
+              placeholder="Enter your name"
+              className={formErrors.playerName ? 'error' : ''}
+              disabled={isLoading || isInQueue}
+              maxLength={30}
+              aria-describedby={formErrors.playerName ? 'playerName-error' : undefined}
+            />
+            {formErrors.playerName && (
+              <span id="playerName-error" className="error-message">
+                {formErrors.playerName}
+              </span>
+            )}
+          </div>
+
+          {/* Game Mode Selection */}
+          <div className="form-group">
+            <label>Game Mode</label>
+            <div className="game-mode-grid">
+              <button
+                {...getGameModeButtonProps('local')}
+                aria-describedby="local-mode-desc"
+              >
+                <div className="game-mode-icon">♟️</div>
+                <div className="game-mode-text">
+                  <h3>Local Game</h3>
+                  <p>Play against a friend on the same device</p>
+                </div>
+              </button>
+
+              <button
+                {...getGameModeButtonProps('ai')}
+                aria-describedby="ai-mode-desc"
+              >
+                <div className="game-mode-icon">🤖</div>
+                <div className="game-mode-text">
+                  <h3>AI Opponent</h3>
+                  <p>Challenge the computer at various difficulty levels</p>
+                </div>
+              </button>
+
+              <button
+                {...getGameModeButtonProps('multiplayer')}
+                aria-describedby="multiplayer-mode-desc"
+                disabled={isLoading || isInQueue || connectionStatus !== 'connected'}
+              >
+                <div className="game-mode-icon">🌐</div>
+                <div className="game-mode-text">
+                  <h3>Online Multiplayer</h3>
+                  <p>Play against other players online</p>
+                </div>
+              </button>
+            </div>
+            {formErrors.gameMode && (
+              <span className="error-message">
+                {formErrors.gameMode}
+              </span>
+            )}
+          </div>
+
+          {/* AI Difficulty Selection */}
+          {selectedGameMode === 'ai' && (
+            <div className="form-group">
+              <DifficultySelector
+                selectedDifficulty={aiDifficulty}
+                onSelect={setAiDifficulty}
+                disabled={isLoading || isInQueue}
               />
             </div>
+          )}
 
-            <div className="color-selection">
-              <h4>Choose your color:</h4>
-              <div className="color-buttons">
-                <button 
-                  className={`color-btn ${selectedColor === 'white' ? 'selected' : ''}`}
-                  onClick={() => setSelectedColor('white')}
+          {/* Queue Status */}
+          {isInQueue && (
+            <div className="queue-status">
+              <div className="queue-content">
+                <div className="spinner" />
+                <div className="queue-text">
+                  <h3>Finding opponent...</h3>
+                  <p>Queue time: {formatQueueTime(queueTime)}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleLeaveQueue}
+                className="btn-secondary"
+              >
+                Leave Queue
+              </button>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          {!isInQueue && (
+            <div className="action-buttons">
+              {selectedGameMode === 'local' && (
+                <button
+                  onClick={handleStartLocalGame}
+                  disabled={isLoading || !playerName || formErrors.playerName}
+                  className="btn-primary"
                 >
-                  White
+                  {isLoading ? <div className="spinner" /> : null}
+                  Start Local Game
                 </button>
-                <button 
-                  className={`color-btn ${selectedColor === 'black' ? 'selected' : ''}`}
-                  onClick={() => setSelectedColor('black')}
+              )}
+
+              {selectedGameMode === 'ai' && (
+                <button
+                  onClick={handleStartAIGame}
+                  disabled={isLoading || !playerName || formErrors.playerName}
+                  className="btn-primary"
                 >
-                  Black
+                  {isLoading ? <div className="spinner" /> : null}
+                  Challenge AI
                 </button>
+              )}
+
+              {selectedGameMode === 'multiplayer' && (
+                <button
+                  onClick={handleStartMultiplayerGame}
+                  disabled={isLoading || !playerName || formErrors.playerName || connectionStatus !== 'connected'}
+                  className="btn-primary"
+                >
+                  {isLoading ? <div className="spinner" /> : null}
+                  Find Opponent
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Game Stats (if available) */}
+        {gameStats && (
+          <div className="game-stats">
+            <h3>Your Stats</h3>
+            <div className="stats-grid">
+              <div className="stat-item">
+                <span className="stat-value">{gameStats.gamesPlayed}</span>
+                <span className="stat-label">Games Played</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{gameStats.wins}</span>
+                <span className="stat-label">Wins</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{gameStats.losses}</span>
+                <span className="stat-label">Losses</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{gameStats.draws}</span>
+                <span className="stat-label">Draws</span>
               </div>
             </div>
-
-            <DifficultySelector
-              selectedDifficulty={selectedDifficulty}
-              onSelect={setSelectedDifficulty}
-            />
-
-            <div className="ai-setup-buttons">
-              <button 
-                onClick={handleStartAIGame}
-                disabled={!playerName.trim() || creatingAIGame}
-                className="start-ai-game-btn"
-              >
-                {creatingAIGame ? 'Creating Game...' : 'Start AI Game'}
-              </button>
-              <button 
-                onClick={handleCancelAISetup}
-                className="cancel-ai-setup-btn"
-              >
-                Back
-              </button>
-            </div>
-          </div>
-        ) : !isInQueue ? (
-          <div className="join-game-section">
-            <div className="input-group">
-              <label htmlFor="playerName">Enter your name:</label>
-              <input
-                id="playerName"
-                type="text"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                placeholder="Your name"
-                maxLength={20}
-              />
-            </div>
-            <button 
-              onClick={handleJoinQueue}
-              disabled={!playerName.trim() || isLoading}
-              className="join-queue-btn"
-            >
-              {isLoading ? 'Joining...' : 'Find Match'}
-            </button>
-          </div>
-        ) : (
-          <div className="queue-section">
-            <div className="queue-status">
-              <h3>Looking for opponent...</h3>
-              <p>Position in queue: {queuePosition}</p>
-              <div className="loading-spinner"></div>
-            </div>
-            <button 
-              onClick={handleLeaveQueue}
-              className="leave-queue-btn"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-
-        {!showAISetup && (
-          <div className="game-modes">
-            <h3>Game Modes</h3>
-            <div className="mode-buttons">
-              <button 
-                onClick={handlePlayAI}
-                className="mode-btn ai-mode"
-              >
-                Play Against AI
-              </button>
-              <Link to="/local" className="mode-btn local-mode">
-                Play Local Game
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {!showAISetup && (
-          <div className="game-info">
-            <h3>How to Play</h3>
-            <ul>
-              <li>Enter your name and click "Find Match" for online play</li>
-              <li>Or click "Play Against AI" to challenge the computer</li>
-              <li>Or click "Play Local Game" to practice locally</li>
-              <li>Use drag and drop to move pieces</li>
-              <li>Chat with your opponent during online games</li>
-            </ul>
           </div>
         )}
       </div>

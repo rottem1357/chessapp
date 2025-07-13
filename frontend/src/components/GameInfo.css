@@ -1,58 +1,356 @@
+﻿/* GameInfo Component Styles */
 .game-info {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  margin-bottom: 20px;
-  width: 100%;
-  max-width: 600px;
+  background: var(--surface-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  max-width: 400px;
+  margin: 0 auto;
 }
 
-.players-info {
+/* Players Section */
+.players-section {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 15px;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
 }
 
-.player-info {
+.player-card {
+  flex: 1;
+  background: var(--background-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  border: 2px solid var(--border-color);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.player-card.active {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-color-light);
+  transform: scale(1.02);
+}
+
+.player-card.white {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  color: var(--text-color);
+}
+
+.player-card.black {
+  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+  color: #ffffff;
+}
+
+.player-card.white.active {
+  border-color: #f39c12;
+  box-shadow: 0 0 0 2px rgba(243, 156, 18, 0.3);
+}
+
+.player-card.black.active {
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
+}
+
+.player-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.player-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.player-card.white .player-avatar {
+  background: #f39c12;
+}
+
+.player-card.black .player-avatar {
+  background: #3498db;
+}
+
+.player-details {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 10px;
-  border-radius: 5px;
-  background: #f8f9fa;
-  min-width: 120px;
-}
-
-.player-info.active {
-  background: #e7f3ff;
-  border: 2px solid #007bff;
+  gap: 2px;
 }
 
 .player-name {
-  font-weight: bold;
-  margin-bottom: 5px;
-  color: #333;
+  font-weight: 600;
+  font-size: 14px;
 }
 
-.player-rating {
-  color: #666;
-  font-size: 0.9rem;
+.player-color {
+  font-size: 12px;
+  opacity: 0.7;
+  text-transform: capitalize;
 }
 
-.game-status {
+.player-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.vs-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.vs-text {
+  line-height: 1;
+}
+
+/* Status Section */
+.status-section {
   text-align: center;
-  padding: 10px;
-  border-radius: 5px;
-  background: #f8f9fa;
+  margin-bottom: var(--spacing-lg);
 }
 
-.status-text {
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: #333;
+.status-indicator {
+  display: inline-block;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
-.status-text.game-over {
-  color: #f44336;
+.status-indicator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s ease;
 }
+
+.status-indicator.your-turn {
+  background: var(--success-color);
+  color: white;
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.opponent-turn {
+  background: var(--warning-color);
+  color: white;
+}
+
+.status-indicator.game-over {
+  background: var(--error-color);
+  color: white;
+}
+
+.status-indicator:hover::before {
+  left: 100%;
+}
+
+.turn-timer {
+  margin-top: var(--spacing-sm);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.time-since-move {
+  font-style: italic;
+}
+
+/* Game Statistics */
+.game-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--background-color);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+/* Controls Hint */
+.controls-hint {
+  text-align: center;
+  padding: var(--spacing-sm);
+  background: var(--info-color-light);
+  border-radius: var(--border-radius);
+  border-left: 4px solid var(--info-color);
+}
+
+.hint-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Animations */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 var(--success-color);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px transparent;
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .game-info {
+    padding: var(--spacing-md);
+    max-width: 100%;
+  }
+  
+  .players-section {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .player-card {
+    width: 100%;
+  }
+  
+  .vs-indicator {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  .game-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+  }
+  
+  .status-indicator {
+    font-size: 14px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .game-info {
+    padding: var(--spacing-sm);
+  }
+  
+  .players-section {
+    gap: var(--spacing-xs);
+  }
+  
+  .player-card {
+    padding: var(--spacing-sm);
+  }
+  
+  .game-stats {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xs);
+  }
+  
+  .player-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .player-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+}
+
+/* Dark Theme Overrides */
+[data-theme="dark"] .player-card.white {
+  background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .player-card.black {
+  background: linear-gradient(135deg, #1a202c 0%, #000000 100%);
+  color: #ffffff;
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .player-card {
+    border-width: 3px;
+  }
+  
+  .status-indicator {
+    border: 2px solid currentColor;
+  }
+  
+  .vs-indicator {
+    border: 2px solid var(--text-color);
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .player-card,
+  .status-indicator,
+  .status-indicator::before {
+    transition: none;
+  }
+  
+  .status-indicator.your-turn {
+    animation: none;
+  }
+  
+  .player-card.active {
+    transform: none;
+  }
+}
+

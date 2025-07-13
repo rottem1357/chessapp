@@ -1,56 +1,146 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { handleError, logError } from '../utils/errorHandler';
 import './DifficultySelector.css';
 
-const DifficultySelector = ({ onSelect, selectedDifficulty = 'intermediate' }) => {
+/**
+ * DifficultySelector Component
+ * 
+ * AI difficulty selection interface with enhanced features
+ * Features:
+ * - Predefined difficulty levels with detailed stats
+ * - Visual feedback and accessibility
+ * - Error handling and loading states
+ * - Responsive design
+ * - Detailed difficulty descriptions
+ */
+const DifficultySelector = ({ 
+  onSelect, 
+  selectedDifficulty = 'intermediate', 
+  disabled = false,
+  showStats = true 
+}) => {
   const [difficulties, setDifficulties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Initialize difficulties from constants
   useEffect(() => {
-    fetchDifficulties();
-  }, []);
-
-  const fetchDifficulties = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/ai/difficulties');
-      const data = await response.json();
+      
+      // Use predefined difficulties from constants
+      const difficultyLevels = [
+        {
+          value: 'beginner',
+          label: 'Beginner',
+          description: 'Perfect for learning the basics. Makes simple moves and occasional mistakes.',
+          depth: 2,
+          moveTime: 500,
+          skillLevel: 5,
+          icon: '🐣',
+          color: 'success'
+        },
+        {
+          value: 'intermediate',
+          label: 'Intermediate',
+          description: 'Good for casual play. Thinks ahead but makes some tactical errors.',
+          depth: 3,
+          moveTime: 800,
+          skillLevel: 8,
+          icon: '🌱',
+          color: 'info'
+        },
+        {
+          value: 'advanced',
+          label: 'Advanced',
+          description: 'Challenging opponent. Strong tactics and positional understanding.',
+          depth: 5,
+          moveTime: 1800,
+          skillLevel: 16,
+          icon: '🔥',
+          color: 'warning'
+        },
+        {
+          value: 'expert',
+          label: 'Expert',
+          description: 'Very strong player. Deep calculation and excellent endgame play.',
+          depth: 6,
+          moveTime: 2500,
+          skillLevel: 19,
+          icon: '🏆',
+          color: 'error'
+        }
+      ];
 
-      if (data.success) {
-        setDifficulties(data.data || []);
-      } else {
-        setError('Failed to load difficulty levels');
-      }
+      setDifficulties(difficultyLevels);
+      setError(null);
     } catch (err) {
-      setError('Failed to connect to server');
-      console.error('Error fetching difficulties:', err);
+      const handledError = handleError(err, 'Failed to load difficulty levels');
+      setError(handledError.message);
+      logError(handledError);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleDifficultySelect = (difficulty) => {
-    onSelect(difficulty);
-  };
+  // Handle difficulty selection
+  const handleDifficultySelect = useCallback((difficulty) => {
+    if (disabled) return;
+    
+    try {
+      onSelect(difficulty);
+    } catch (err) {
+      const handledError = handleError(err, 'Failed to select difficulty');
+      setError(handledError.message);
+      logError(handledError);
+    }
+  }, [disabled, onSelect]);
 
-  const getDifficultyClass = (difficulty) => {
-    return `difficulty-card ${difficulty} ${selectedDifficulty === difficulty ? 'selected' : ''}`;
-  };
+  // Get difficulty card class
+  const getDifficultyClass = useCallback((difficulty) => {
+    const baseClass = 'difficulty-card';
+    const colorClass = difficulty.color;
+    const selectedClass = selectedDifficulty === difficulty.value ? 'selected' : '';
+    const disabledClass = disabled ? 'disabled' : '';
+    
+    return `${baseClass} ${colorClass} ${selectedClass} ${disabledClass}`.trim();
+  }, [selectedDifficulty, disabled]);
 
+  // Retry loading difficulties
+  const handleRetry = useCallback(() => {
+    setError(null);
+    setLoading(true);
+    
+    // Simulate retry with timeout
+    setTimeout(() => {
+      setLoading(false);
+    }, 500);
+  }, []);
+
+  // Loading state
   if (loading) {
     return (
       <div className="difficulty-selector">
-        <div className="loading">Loading difficulty levels...</div>
+        <div className="loading-container">
+          <div className="spinner" />
+          <p>Loading difficulty levels...</p>
+        </div>
       </div>
     );
   }
 
+  // Error state
   if (error) {
     return (
       <div className="difficulty-selector">
-        <div className="error">
-          {error}
-          <button onClick={fetchDifficulties}>Retry</button>
+        <div className="error-container">
+          <div className="error-message">
+            <span className="error-icon">⚠️</span>
+            <span>{error}</span>
+          </div>
+          <button onClick={handleRetry} className="retry-btn">
+            Try Again
+          </button>
         </div>
       </div>
     );
@@ -58,35 +148,54 @@ const DifficultySelector = ({ onSelect, selectedDifficulty = 'intermediate' }) =
 
   return (
     <div className="difficulty-selector">
-      <h3>Select Difficulty</h3>
+      <div className="selector-header">
+        <h3>Select AI Difficulty</h3>
+        <p className="selector-subtitle">Choose your preferred challenge level</p>
+      </div>
+      
       <div className="difficulty-grid">
-        {difficulties && difficulties.length > 0 ? difficulties.map((difficulty) => (
+        {difficulties.map((difficulty) => (
           <div
             key={difficulty.value}
-            className={getDifficultyClass(difficulty.value)}
+            className={getDifficultyClass(difficulty)}
             onClick={() => handleDifficultySelect(difficulty.value)}
+            role="button"
+            tabIndex={disabled ? -1 : 0}
+            aria-pressed={selectedDifficulty === difficulty.value}
+            aria-label={`Select ${difficulty.label} difficulty`}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleDifficultySelect(difficulty.value);
+              }
+            }}
           >
             <div className="difficulty-header">
-              <h4>{difficulty.label}</h4>
-              <div className={`difficulty-badge ${difficulty.value}`}>
-                {difficulty.value}
+              <div className="difficulty-icon">{difficulty.icon}</div>
+              <div className="difficulty-title">
+                <h4>{difficulty.label}</h4>
+                <div className={`difficulty-badge ${difficulty.color}`}>
+                  Level {difficulty.skillLevel}/20
+                </div>
               </div>
             </div>
             
-            <div className="difficulty-stats">
-              <div className="stat">
-                <span className="stat-label">Depth:</span>
-                <span className="stat-value">{difficulty.depth}</span>
+            {showStats && (
+              <div className="difficulty-stats">
+                <div className="stat">
+                  <span className="stat-label">Search Depth:</span>
+                  <span className="stat-value">{difficulty.depth}</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-label">Think Time:</span>
+                  <span className="stat-value">{difficulty.moveTime}ms</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-label">Skill Level:</span>
+                  <span className="stat-value">{difficulty.skillLevel}/20</span>
+                </div>
               </div>
-              <div className="stat">
-                <span className="stat-label">Think Time:</span>
-                <span className="stat-value">{difficulty.moveTime}ms</span>
-              </div>
-              <div className="stat">
-                <span className="stat-label">Skill Level:</span>
-                <span className="stat-value">{difficulty.skillLevel}/20</span>
-              </div>
-            </div>
+            )}
             
             <div className="difficulty-description">
               {difficulty.description}
@@ -94,16 +203,21 @@ const DifficultySelector = ({ onSelect, selectedDifficulty = 'intermediate' }) =
             
             {selectedDifficulty === difficulty.value && (
               <div className="selected-indicator">
-                ✓ Selected
+                <span className="checkmark">✓</span>
+                <span>Selected</span>
               </div>
             )}
           </div>
-        )) : (
-          <div className="no-difficulties">
-            No difficulty levels available
-          </div>
-        )}
+        ))}
       </div>
+      
+      {selectedDifficulty && (
+        <div className="selection-summary">
+          <span className="summary-text">
+            Selected: <strong>{difficulties.find(d => d.value === selectedDifficulty)?.label}</strong>
+          </span>
+        </div>
+      )}
     </div>
   );
 };
