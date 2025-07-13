@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useSocket } from '../hooks/useSocket';
 import './Home.css';
 
@@ -7,6 +7,8 @@ const Home = () => {
   const [playerName, setPlayerName] = useState('');
   const [isInQueue, setIsInQueue] = useState(false);
   const [queuePosition, setQueuePosition] = useState(0);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const socket = useSocket();
 
@@ -16,10 +18,13 @@ const Home = () => {
     socket.on('queue-joined', (data) => {
       setIsInQueue(true);
       setQueuePosition(data.position);
+      setError('');
+      setIsLoading(false);
     });
 
     socket.on('game-started', (data) => {
       setIsInQueue(false);
+      setIsLoading(false);
       navigate(`/game/${data.gameId}`, { 
         state: { 
           gameId: data.gameId, 
@@ -30,14 +35,32 @@ const Home = () => {
       });
     });
 
+    socket.on('error', (data) => {
+      setError(data.message || 'An error occurred');
+      setIsLoading(false);
+      setIsInQueue(false);
+    });
+
     return () => {
       socket.off('queue-joined');
       socket.off('game-started');
+      socket.off('error');
     };
   }, [socket, navigate]);
 
   const handleJoinQueue = () => {
-    if (!playerName.trim()) return;
+    if (!playerName.trim()) {
+      setError('Please enter your name');
+      return;
+    }
+    
+    if (!socket) {
+      setError('Connection not established. Please try again.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
     
     socket.emit('join-queue', {
       name: playerName,
@@ -56,6 +79,12 @@ const Home = () => {
       <div className="home-content">
         <h2>Welcome to Chess App</h2>
         
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+        
         {!isInQueue ? (
           <div className="join-game-section">
             <div className="input-group">
@@ -71,10 +100,10 @@ const Home = () => {
             </div>
             <button 
               onClick={handleJoinQueue}
-              disabled={!playerName.trim()}
+              disabled={!playerName.trim() || isLoading}
               className="join-queue-btn"
             >
-              Find Match
+              {isLoading ? 'Joining...' : 'Find Match'}
             </button>
           </div>
         ) : (
@@ -93,13 +122,22 @@ const Home = () => {
           </div>
         )}
 
+        <div className="game-modes">
+          <h3>Game Modes</h3>
+          <div className="mode-buttons">
+            <Link to="/local" className="mode-btn local-mode">
+              Play Local Game
+            </Link>
+          </div>
+        </div>
+
         <div className="game-info">
           <h3>How to Play</h3>
           <ul>
-            <li>Enter your name and click "Find Match"</li>
-            <li>Wait for an opponent to join</li>
-            <li>Play chess using standard rules</li>
-            <li>Chat with your opponent during the game</li>
+            <li>Enter your name and click "Find Match" for online play</li>
+            <li>Or click "Play Local Game" to practice locally</li>
+            <li>Use drag and drop to move pieces</li>
+            <li>Chat with your opponent during online games</li>
           </ul>
         </div>
       </div>

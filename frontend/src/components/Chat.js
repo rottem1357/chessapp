@@ -5,7 +5,7 @@ import './Chat.css';
 const Chat = ({ gameId, playerColor }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [playerName, setPlayerName] = useState(`Player ${playerColor}`);
+  const [playerName] = useState(`Player ${playerColor}`); // Removed setPlayerName since it's unused
   const messagesEndRef = useRef(null);
   const socket = useSocket();
 

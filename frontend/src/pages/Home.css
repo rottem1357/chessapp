@@ -16,8 +16,52 @@
   margin-bottom: 30px;
 }
 
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #fcc;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
 .join-game-section {
   margin-bottom: 30px;
+}
+
+.game-modes {
+  margin-bottom: 30px;
+}
+
+.game-modes h3 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.mode-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.mode-btn {
+  display: inline-block;
+  padding: 12px 24px;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: bold;
+  text-align: center;
+  transition: background-color 0.3s;
+}
+
+.local-mode {
+  background: #28a745;
+  color: white;
+}
+
+.local-mode:hover {
+  background: #218838;
 }
 
 .input-group {

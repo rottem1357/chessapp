@@ -4,12 +4,13 @@ const socketIo = require('socket.io');
 const cors = require('cors');
 const { Chess } = require('chess.js');
 const { v4: uuidv4 } = require('uuid');
+require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: process.env.SOCKET_CORS_ORIGIN || "http://localhost:3000",
     methods: ["GET", "POST"]
   }
 });
@@ -44,56 +45,69 @@ io.on('connection', (socket) => {
 
   // Handle player joining queue
   socket.on('join-queue', (playerData) => {
-    const player = {
-      id: socket.id,
-      name: playerData.name || `Player ${socket.id.substring(0, 6)}`,
-      rating: playerData.rating || 1200
-    };
+    try {
+      const player = {
+        id: socket.id,
+        name: playerData.name || `Player ${socket.id.substring(0, 6)}`,
+        rating: playerData.rating || 1200
+      };
 
-    waitingPlayers.push(player);
-    socket.emit('queue-joined', { position: waitingPlayers.length });
+      waitingPlayers.push(player);
+      socket.emit('queue-joined', { position: waitingPlayers.length });
 
-    // Try to match players
-    if (waitingPlayers.length >= 2) {
-      const player1 = waitingPlayers.shift();
-      const player2 = waitingPlayers.shift();
-      
-      createGame(player1, player2);
+      // Try to match players
+      if (waitingPlayers.length >= 2) {
+        const player1 = waitingPlayers.shift();
+        const player2 = waitingPlayers.shift();
+        
+        createGame(player1, player2);
+      }
+    } catch (error) {
+      console.error('Error joining queue:', error);
+      socket.emit('error', { message: 'Failed to join queue' });
     }
   });
 
   // Handle moves
   socket.on('make-move', (data) => {
-    const game = games.get(data.gameId);
-    if (!game) return;
-
-    const chess = new Chess(game.fen);
-    const move = chess.move(data.move);
-    
-    if (move) {
-      game.fen = chess.fen();
-      game.moves.push(move);
-      
-      // Check for game end
-      if (chess.isGameOver()) {
-        game.status = chess.isCheckmate() ? 'checkmate' : 
-                     chess.isDraw() ? 'draw' : 'finished';
-        game.winner = chess.isCheckmate() ? 
-                     (chess.turn() === 'w' ? 'black' : 'white') : null;
+    try {
+      const game = games.get(data.gameId);
+      if (!game) {
+        socket.emit('error', { message: 'Game not found' });
+        return;
       }
 
-      // Broadcast move to both players
-      game.players.forEach(playerId => {
-        io.to(playerId).emit('move-made', {
-          move: move,
-          fen: game.fen,
-          turn: chess.turn(),
-          gameStatus: game.status,
-          winner: game.winner
+      const chess = new Chess(game.fen);
+      const move = chess.move(data.move);
+      
+      if (move) {
+        game.fen = chess.fen();
+        game.moves.push(move);
+        
+        // Check for game end
+        if (chess.isGameOver()) {
+          game.status = chess.isCheckmate() ? 'checkmate' : 
+                       chess.isDraw() ? 'draw' : 'finished';
+          game.winner = chess.isCheckmate() ? 
+                       (chess.turn() === 'w' ? 'black' : 'white') : null;
+        }
+
+        // Broadcast move to both players
+        game.players.forEach(playerId => {
+          io.to(playerId).emit('move-made', {
+            move: move,
+            fen: game.fen,
+            turn: chess.turn(),
+            gameStatus: game.status,
+            winner: game.winner
+          });
         });
-      });
-    } else {
-      socket.emit('invalid-move', { error: 'Invalid move' });
+      } else {
+        socket.emit('invalid-move', { error: 'Invalid move' });
+      }
+    } catch (error) {
+      console.error('Error making move:', error);
+      socket.emit('error', { message: 'Failed to make move' });
     }
   });
 
@@ -133,24 +147,28 @@ io.on('connection', (socket) => {
 
   // Handle disconnection
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-    
-    // Remove from waiting queue
-    const queueIndex = waitingPlayers.findIndex(p => p.id === socket.id);
-    if (queueIndex > -1) {
-      waitingPlayers.splice(queueIndex, 1);
-    }
-
-    // Handle game disconnection
-    for (const [gameId, game] of games) {
-      if (game.players.includes(socket.id)) {
-        const otherPlayer = game.players.find(p => p !== socket.id);
-        if (otherPlayer) {
-          io.to(otherPlayer).emit('opponent-disconnected');
-        }
-        games.delete(gameId);
-        break;
+    try {
+      console.log('User disconnected:', socket.id);
+      
+      // Remove from waiting queue
+      const queueIndex = waitingPlayers.findIndex(p => p.id === socket.id);
+      if (queueIndex > -1) {
+        waitingPlayers.splice(queueIndex, 1);
       }
+
+      // Handle game disconnection
+      for (const [gameId, game] of games) {
+        if (game.players.includes(socket.id)) {
+          const otherPlayer = game.players.find(p => p !== socket.id);
+          if (otherPlayer) {
+            io.to(otherPlayer).emit('opponent-disconnected');
+          }
+          games.delete(gameId);
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('Error handling disconnect:', error);
     }
   });
 });

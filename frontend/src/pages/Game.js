@@ -19,6 +19,12 @@ const Game = () => {
   const [gameStatus, setGameStatus] = useState('active');
   const [winner, setWinner] = useState(null);
   const [isMyTurn, setIsMyTurn] = useState(false);
+  const [error, setError] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
+
+  // Display error and connection status (will be used in UI later)
+  console.log('Connection Status:', connectionStatus);
+  if (error) console.log('Game Error:', error);
 
   useEffect(() => {
     if (location.state) {
@@ -36,6 +42,16 @@ const Game = () => {
   useEffect(() => {
     if (!socket) return;
 
+    socket.on('connect', () => {
+      setConnectionStatus('connected');
+      setError('');
+    });
+
+    socket.on('disconnect', () => {
+      setConnectionStatus('disconnected');
+      setError('Connection lost. Attempting to reconnect...');
+    });
+
     socket.on('move-made', (data) => {
       const newGame = new Chess(data.fen);
       setGame(newGame);
@@ -43,10 +59,12 @@ const Game = () => {
       setIsMyTurn(data.turn === (playerColor === 'white' ? 'w' : 'b'));
       setGameStatus(data.gameStatus);
       setWinner(data.winner);
+      setError(''); // Clear any previous errors
     });
 
     socket.on('invalid-move', (data) => {
       console.error('Invalid move:', data.error);
+      setError('Invalid move. Please try again.');
     });
 
     socket.on('game-ended', (data) => {
@@ -56,13 +74,21 @@ const Game = () => {
 
     socket.on('opponent-disconnected', () => {
       setGameStatus('opponent-disconnected');
+      setError('Your opponent has disconnected.');
+    });
+
+    socket.on('error', (data) => {
+      setError(data.message || 'An error occurred');
     });
 
     return () => {
+      socket.off('connect');
+      socket.off('disconnect');
       socket.off('move-made');
       socket.off('invalid-move');
       socket.off('game-ended');
       socket.off('opponent-disconnected');
+      socket.off('error');
     };
   }, [socket, playerColor]);
 

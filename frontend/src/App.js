@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Game from './pages/Game';
+import LocalGame from './pages/LocalGame';
 import './App.css';
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/game/:gameId" element={<Game />} />
+            <Route path="/local" element={<LocalGame />} />
           </Routes>
         </main>
       </div>
