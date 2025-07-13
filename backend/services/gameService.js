@@ -533,11 +533,13 @@ class GameService {
   /**
    * Start cleanup interval
    */
-  startCleanupInterval() {
-    setInterval(() => {
-      this.cleanupOldGames();
-    }, this.gameTimeout / 2); // Run cleanup every half timeout period
-  }
+    startCleanupInterval() {
+        if (process.env.NODE_ENV !== 'test') {
+            setInterval(() => {
+                this.cleanupOldGames();
+            }, this.gameTimeout / 2); // Run cleanup every half timeout period
+        }
+    }
 
   /**
    * Cleanup old games

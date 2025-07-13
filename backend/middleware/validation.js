@@ -1,4 +1,66 @@
 /**
+ * Validate registration data
+ */
+function validateRegister(req, res, next) {
+  const { username, email, password } = req.body;
+  if (!username || !email || !password) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(
+      formatErrorResponse('Username, email, and password are required')
+    );
+  }
+  // Basic email format check
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(
+      formatErrorResponse('Invalid email format')
+    );
+  }
+  next();
+}
+
+/**
+ * Validate login data
+ */
+function validateLogin(req, res, next) {
+  const { username, email, password } = req.body;
+  if ((!username && !email) || !password) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(
+      formatErrorResponse('Username or email and password are required')
+    );
+  }
+  next();
+}
+
+/**
+ * Validate password reset request data
+ */
+function validatePasswordResetRequest(req, res, next) {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(
+      formatErrorResponse('Email is required')
+    );
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(
+      formatErrorResponse('Invalid email format')
+    );
+  }
+  next();
+}
+
+/**
+ * Validate password reset confirmation data
+ */
+function validatePasswordResetConfirm(req, res, next) {
+  const { reset_token, new_password } = req.body;
+  if (!reset_token || !new_password) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(
+      formatErrorResponse('Reset token and new password are required')
+    );
+  }
+  next();
+}
+/**
  * Validation Middleware
  * Input validation middleware for the chess application
  */
@@ -170,6 +232,23 @@ function validatePagination(req, res, next) {
   next();
 }
 
+/**
+ * Validate Authorization Token
+ * Checks for presence and format of Bearer token in Authorization header
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Next middleware function
+ */
+function validateAuthToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json(
+      formatErrorResponse('Authorization token missing or invalid format')
+    );
+  }
+  next();
+}
+
 module.exports = {
   validateGameId,
   validatePlayerData,
@@ -177,5 +256,10 @@ module.exports = {
   validateMoveData,
   validateAIGameData,
   validateRequestBody,
-  validatePagination
+  validatePagination,
+  validateAuthToken,
+  validateRegister,
+  validateLogin,
+  validatePasswordResetRequest,
+  validatePasswordResetConfirm
 };

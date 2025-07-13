@@ -412,11 +412,13 @@ class AIService {
   /**
    * Start cleanup interval for old games
    */
-  startCleanupInterval() {
-    setInterval(() => {
-      this.cleanupOldGames();
-    }, config.ai.cleanupInterval);
-  }
+    startCleanupInterval() {
+        if (process.env.NODE_ENV !== 'test') {
+            setInterval(() => {
+                this.cleanupOldGames();
+            }, config.ai.cleanupInterval);
+        }
+    }
 
   /**
    * Cleanup old games
