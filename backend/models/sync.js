@@ -1,30 +1,82 @@
-// Sync Sequelize models with the database
-const sequelize = require('../config/database');
-const User = require('./User');
-const Game = require('./game');
-const Move = require('./Move');
-const EngineReport = require('./EngineReport');
-const Annotation = require('./Annotation');
-const Opening = require('./Opening');
-const Puzzle = require('./Puzzle'); // if using
+// database/sync.js
+const db = require('../models');
+const logger = require('../utils/logger');
 
-const models = [User, Game, Move, EngineReport, Annotation, Opening, Puzzle];
-
-async function syncModels() {
+/**
+ * Initialize database connection and sync models
+ */
+async function initializeDatabase() {
   try {
-    await sequelize.authenticate();
-    console.log('Database connected.');
+    logger.info('Starting database initialization...');
 
-    for (const model of models) {
-      await model.sync({ alter: true });
-      console.log(`${model.name} synced.`);
-    }
+    // Test database connection
+    await db.sequelize.authenticate();
+    logger.info('Database connection established successfully');
 
-    process.exit(0);
-  } catch (err) {
-    console.error('Sync error:', err);
-    process.exit(1);
+    // Sync all models (create tables)
+    const syncOptions = {
+      force: process.env.NODE_ENV === 'development' && process.env.DB_FORCE_SYNC === 'true',
+      alter: process.env.NODE_ENV === 'development' && process.env.DB_ALTER === 'true'
+    };
+
+    await db.sequelize.sync(syncOptions);
+    logger.info('Database tables synchronized successfully');
+    
+    return true;
+  } catch (error) {
+    logger.error('Database initialization failed:', error);
+    throw error;
   }
 }
 
-syncModels();
+/**
+ * Close database connection
+ */
+async function closeDatabase() {
+  try {
+    await db.sequelize.close();
+    logger.info('Database connection closed successfully');
+  } catch (error) {
+    logger.error('Error closing database connection:', error);
+    throw error;
+  }
+}
+
+/**
+ * Drop all tables (use with caution)
+ */
+async function dropAllTables() {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Cannot drop tables in production environment');
+    }
+
+    logger.warn('Dropping all database tables...');
+    await db.sequelize.drop();
+    logger.info('All tables dropped successfully');
+  } catch (error) {
+    logger.error('Error dropping tables:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check database connection
+ */
+async function checkConnection() {
+  try {
+    await db.sequelize.authenticate();
+    logger.info('Database connection is healthy');
+    return true;
+  } catch (error) {
+    logger.error('Database connection failed:', error);
+    return false;
+  }
+}
+
+module.exports = {
+  initializeDatabase,
+  closeDatabase,
+  dropAllTables,
+  checkConnection
+};

@@ -249,6 +249,30 @@ function validateAuthToken(req, res, next) {
   next();
 }
 
+function validateGameId(req, res, next) {
+  const { gameId } = req.params;
+  if (!gameId || typeof gameId !== 'string') {
+    return res.status(400).json({ error: 'Invalid game ID' });
+  }
+  next();
+};
+
+function validateMoveId(req, res, next) {
+  const { moveId } = req.params;
+  if (!moveId || isNaN(parseInt(moveId))) {
+    return res.status(400).json({ error: 'Invalid move ID' });
+  }
+  next();
+};
+
+function validateMoveData(req, res, next) {
+  const { san, lan, fen, playerColor } = req.body;
+  if (!san || !lan || !fen || !['white', 'black'].includes(playerColor)) {
+    return res.status(400).json({ error: 'Missing or invalid move data' });
+  }
+  next();
+};
+
 module.exports = {
   validateGameId,
   validatePlayerData,
@@ -261,5 +285,8 @@ module.exports = {
   validateRegister,
   validateLogin,
   validatePasswordResetRequest,
-  validatePasswordResetConfirm
+  validatePasswordResetConfirm,
+  validateGameId,
+  validateMoveData,
+  validateMoveId
 };

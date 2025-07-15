@@ -1,62 +1,15 @@
-/**
- * Game Routes
- * Routes for multiplayer games
- */
-
+// routes/analysis.js
 const express = require('express');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { 
-  validateGameId, 
-  validatePlayerData, 
-  validatePagination 
-} = require('../middleware/validation');
+const { validateGameId } = require('../middleware/validation');
 const {
-  getHealth,
-  getGames,
-  getGameDetails,
-  createGame,
-  joinGame,
-  leaveGame,
-  getGameStats
-} = require('../controllers/gameController');
+  analyzeGame,
+  getGameAnalysis
+} = require('../controllers/analysisController');
 
 const router = express.Router();
 
-// Health check
-router.get('/health', asyncHandler(getHealth));
-
-// Game statistics
-router.get('/stats', asyncHandler(getGameStats));
-
-// Get games list
-router.get('/games', 
-  validatePagination,
-  asyncHandler(getGames)
-);
-
-// Create new game
-router.post('/games', 
-  validatePlayerData,
-  asyncHandler(createGame)
-);
-
-// Get game details
-router.get('/games/:gameId', 
-  validateGameId,
-  asyncHandler(getGameDetails)
-);
-
-// Join game
-router.post('/games/:gameId/join',
-  validateGameId,
-  validatePlayerData,
-  asyncHandler(joinGame)
-);
-
-// Leave game
-router.post('/games/:gameId/leave',
-  validateGameId,
-  asyncHandler(leaveGame)
-);
+router.post('/games/:gameId/analyze', validateGameId, asyncHandler(analyzeGame));
+router.get('/games/:gameId/analysis', validateGameId, asyncHandler(getGameAnalysis));
 
 module.exports = router;

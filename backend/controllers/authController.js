@@ -3,8 +3,8 @@
  * Handles register, login, logout, password reset, and profile endpoints
  */
 
-const { registerUser, loginUser, logoutUser, requestPasswordReset, confirmPasswordReset, getProfile } = require('../services/authService');
-const { HTTP_STATUS, SUCCESS_MESSAGES, ERROR_MESSAGES } = require('../utils/constants');
+const authService = require('../services/authService');
+const { HTTP_STATUS } = require('../utils/constants');
 const { formatSuccessResponse, formatErrorResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
@@ -14,11 +14,17 @@ const logger = require('../utils/logger');
 async function register(req, res) {
   try {
     logger.info('Registering user', { body: req.body });
-    const userResponse = await registerUser(req.body);
-    res.status(HTTP_STATUS.CREATED).json(userResponse);
-  } catch (err) {
-    logger.error('Registration failed', { error: err.message });
-    res.status(HTTP_STATUS.BAD_REQUEST).json(formatErrorResponse(err.message));
+
+    const result = await authService.registerUser(req.body);
+
+    res
+      .status(HTTP_STATUS.CREATED)
+      .json(formatSuccessResponse(result, 'User registered'));
+  } catch (error) {
+    logger.error('Registration failed', { error: error.message });
+    res
+      .status(HTTP_STATUS.BAD_REQUEST)
+      .json(formatErrorResponse(error.message));
   }
 }
 
@@ -28,11 +34,17 @@ async function register(req, res) {
 async function login(req, res) {
   try {
     logger.info('User login attempt', { body: req.body });
-    const loginResponse = await loginUser(req.body);
-    res.status(HTTP_STATUS.OK).json(loginResponse);
-  } catch (err) {
-    logger.error('Login failed', { error: err.message });
-    res.status(HTTP_STATUS.UNAUTHORIZED).json(formatErrorResponse(err.message));
+
+    const result = await authService.loginUser(req.body);
+
+    res
+      .status(HTTP_STATUS.OK)
+      .json(formatSuccessResponse(result, 'Login successful'));
+  } catch (error) {
+    logger.error('Login failed', { error: error.message });
+    res
+      .status(HTTP_STATUS.UNAUTHORIZED)
+      .json(formatErrorResponse(error.message));
   }
 }
 
@@ -42,53 +54,80 @@ async function login(req, res) {
 async function logout(req, res) {
   try {
     logger.info('User logout', { token: req.body.token });
-    const logoutResponse = await logoutUser(req.body.token);
-    res.status(HTTP_STATUS.OK).json(logoutResponse);
-  } catch (err) {
-    logger.error('Logout failed', { error: err.message });
-    res.status(HTTP_STATUS.BAD_REQUEST).json(formatErrorResponse(err.message));
+
+    const result = await authService.logoutUser(req.body.token);
+
+    res
+      .status(HTTP_STATUS.OK)
+      .json(formatSuccessResponse(result, 'Logout successful'));
+  } catch (error) {
+    logger.error('Logout failed', { error: error.message });
+    res
+      .status(HTTP_STATUS.BAD_REQUEST)
+      .json(formatErrorResponse(error.message));
   }
 }
 
 /**
  * Request password reset
  */
-async function requestPasswordResetHandler(req, res) {
+async function requestPasswordReset(req, res) {
   try {
     logger.info('Password reset requested', { email: req.body.email });
-    const resetResponse = await requestPasswordReset(req.body.email);
-    res.status(HTTP_STATUS.OK).json(resetResponse);
-  } catch (err) {
-    logger.error('Password reset request failed', { error: err.message });
-    res.status(HTTP_STATUS.BAD_REQUEST).json(formatErrorResponse(err.message));
+
+    const result = await authService.requestPasswordReset(req.body.email);
+
+    res
+      .status(HTTP_STATUS.OK)
+      .json(formatSuccessResponse(result, 'Password reset requested'));
+  } catch (error) {
+    logger.error('Password reset request failed', { error: error.message });
+    res
+      .status(HTTP_STATUS.BAD_REQUEST)
+      .json(formatErrorResponse(error.message));
   }
 }
 
 /**
  * Confirm password reset
  */
-async function confirmPasswordResetHandler(req, res) {
+async function confirmPasswordReset(req, res) {
   try {
     logger.info('Password reset confirmation', { token: req.body.reset_token });
-    const confirmResponse = await confirmPasswordReset(req.body.reset_token, req.body.new_password);
-    res.status(HTTP_STATUS.OK).json(confirmResponse);
-  } catch (err) {
-    logger.error('Password reset confirmation failed', { error: err.message });
-    res.status(HTTP_STATUS.BAD_REQUEST).json(formatErrorResponse(err.message));
+
+    const result = await authService.confirmPasswordReset(
+      req.body.reset_token,
+      req.body.new_password
+    );
+
+    res
+      .status(HTTP_STATUS.OK)
+      .json(formatSuccessResponse(result, 'Password reset confirmed'));
+  } catch (error) {
+    logger.error('Password reset confirmation failed', { error: error.message });
+    res
+      .status(HTTP_STATUS.BAD_REQUEST)
+      .json(formatErrorResponse(error.message));
   }
 }
 
 /**
  * Get current user profile
  */
-async function getProfileHandler(req, res) {
+async function getProfile(req, res) {
   try {
-    logger.info('Fetching user profile', { user: req.user });
-    const profileResponse = await getProfile(req.user);
-    res.status(HTTP_STATUS.OK).json(profileResponse);
-  } catch (err) {
-    logger.error('Get profile failed', { error: err.message });
-    res.status(HTTP_STATUS.UNAUTHORIZED).json(formatErrorResponse(err.message));
+    logger.info('Fetching user profile', { userId: req.user?.id });
+
+    const result = await authService.getProfile(req.user);
+
+    res
+      .status(HTTP_STATUS.OK)
+      .json(formatSuccessResponse(result, 'Profile fetched'));
+  } catch (error) {
+    logger.error('Fetching profile failed', { error: error.message });
+    res
+      .status(HTTP_STATUS.UNAUTHORIZED)
+      .json(formatErrorResponse(error.message));
   }
 }
 
@@ -96,7 +135,7 @@ module.exports = {
   register,
   login,
   logout,
-  requestPasswordReset: requestPasswordResetHandler,
-  confirmPasswordReset: confirmPasswordResetHandler,
-  getProfile: getProfileHandler
+  requestPasswordReset,
+  confirmPasswordReset,
+  getProfile,
 };
