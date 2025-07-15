@@ -1,47 +1,40 @@
-/**
- * Request Logging Middleware
- * Logs incoming requests for debugging and monitoring
- */
-
+// middleware/requestLogger.js
 const logger = require('../utils/logger');
 
 /**
- * Log incoming requests
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Next middleware function
+ * Request logging middleware
  */
-function requestLogger(req, res, next) {
+const requestLogger = (req, res, next) => {
   const startTime = Date.now();
   
-  // Log request details
-  logger.info('Incoming request', {
+  // Log incoming request
+  logger.debug('Incoming request', {
     method: req.method,
     url: req.url,
     ip: req.ip,
     userAgent: req.get('User-Agent'),
-    timestamp: new Date().toISOString()
+    userId: req.user?.id
   });
-  
-  // Override res.end to log response
+
+  // Override res.end to capture response details
   const originalEnd = res.end;
+  
   res.end = function(chunk, encoding) {
-    const duration = Date.now() - startTime;
+    const responseTime = Date.now() - startTime;
     
-    logger.info('Request completed', {
-      method: req.method,
-      url: req.url,
-      statusCode: res.statusCode,
-      duration: `${duration}ms`,
-      timestamp: new Date().toISOString()
+    // Log completed request
+    logger.http(req.method, req.url, res.statusCode, responseTime, {
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      userId: req.user?.id,
+      contentLength: res.get('Content-Length')
     });
     
-    originalEnd.call(this, chunk, encoding);
+    // Call original end method
+    originalEnd.call(res, chunk, encoding);
   };
-  
-  next();
-}
 
-module.exports = {
-  requestLogger
+  next();
 };
+
+module.exports = { requestLogger };

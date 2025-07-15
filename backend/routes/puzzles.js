@@ -1,18 +1,19 @@
+// routes/puzzles.js
 const express = require('express');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { validatePuzzleData, validatePuzzleAttempt } = require('../middleware/validation');
-const {
-  listPuzzles,
-  createPuzzle,
-  getPuzzle,
-  submitPuzzleAttempt
-} = require('../controllers/puzzleController');
+const { validatePuzzleQuery, validatePuzzleAttempt } = require('../middleware/validation');
+const puzzleController = require('../controllers/puzzleController');
+const verifyToken = require('../middleware/verifyToken');
+const optionalAuth = require('../middleware/optionalAuth');
 
 const router = express.Router();
 
-router.get('/puzzles', asyncHandler(listPuzzles));
-router.post('/puzzles', validatePuzzleData, asyncHandler(createPuzzle));
-router.get('/puzzles/:puzzleId', asyncHandler(getPuzzle));
-router.post('/puzzles/:puzzleId/attempt', validatePuzzleAttempt, asyncHandler(submitPuzzleAttempt));
+// Public routes
+router.get('/random', validatePuzzleQuery, optionalAuth, asyncHandler(puzzleController.getRandomPuzzle));
+router.get('/categories', asyncHandler(puzzleController.getCategories));
+router.get('/:puzzleId', optionalAuth, asyncHandler(puzzleController.getPuzzleById));
+
+// Protected routes
+router.post('/:puzzleId/attempt', verifyToken, validatePuzzleAttempt, asyncHandler(puzzleController.submitAttempt));
 
 module.exports = router;

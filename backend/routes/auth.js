@@ -1,58 +1,20 @@
-/**
- * Authentication Routes
- * Routes for user authentication
- */
-
+// routes/auth.js
 const express = require('express');
 const { asyncHandler } = require('../middleware/errorHandler');
-// Placeholder validation middleware (to be implemented)
-const { validateRegister, validateLogin, validatePasswordResetRequest, validatePasswordResetConfirm, validateAuthToken } = require('../middleware/validation');
-const {
-  register,
-  login,
-  logout,
-  requestPasswordReset,
-  confirmPasswordReset,
-  getProfile
-} = require('../controllers/authController');
+const { validateRegister, validateLogin, validatePasswordResetRequest, validatePasswordResetConfirm } = require('../middleware/validation');
+const authController = require('../controllers/authController');
 const verifyToken = require('../middleware/verifyToken');
 
 const router = express.Router();
 
-// Register new user
-router.post('/register', 
-  validateRegister,
-  asyncHandler(register)
-);
+// Public routes
+router.post('/register', validateRegister, asyncHandler(authController.register));
+router.post('/login', validateLogin, asyncHandler(authController.login));
+router.post('/password-reset/request', validatePasswordResetRequest, asyncHandler(authController.requestPasswordReset));
+router.post('/password-reset/confirm', validatePasswordResetConfirm, asyncHandler(authController.confirmPasswordReset));
 
-// Login user
-router.post('/login', 
-  validateLogin,
-  asyncHandler(login)
-);
-
-// Logout user
-router.post('/logout', 
-  validateAuthToken,
-  asyncHandler(logout)
-);
-
-// Request password reset
-router.post('/password-reset/request', 
-  validatePasswordResetRequest,
-  asyncHandler(requestPasswordReset)
-);
-
-// Confirm password reset
-router.post('/password-reset/confirm', 
-  validatePasswordResetConfirm,
-  asyncHandler(confirmPasswordReset)
-);
-
-// Get current user profile (protected)
-router.get('/me', 
-  verifyToken,
-  asyncHandler(getProfile)
-);
+// Protected routes
+router.post('/logout', verifyToken, asyncHandler(authController.logout));
+router.get('/me', verifyToken, asyncHandler(authController.getProfile));
 
 module.exports = router;

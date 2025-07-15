@@ -127,7 +127,7 @@ const { move } = require("../routes/games");
     ]
   });
 
-  move.associate = (models) => {
+  Move.associate = (models) => {
     Move.belongsTo(models.Game, { foreignKey: 'game_id', as: 'game' });
     Move.belongsTo(models.Player, { foreignKey: 'player_id', as: 'player' });
     Move.hasMany(models.Annotation, { foreignKey: 'move_id', as: 'annotations' });

@@ -1,28 +1,89 @@
-/**
- * JWT Verification Middleware
- * Protects routes by verifying JWT access tokens
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Next middleware function
- */
+// middleware/verifyToken.js
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { HTTP_STATUS } = require('../utils/constants');
 const { formatErrorResponse } = require('../utils/helpers');
+const logger = require('../utils/logger');
 
-function verifyToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(HTTP_STATUS.UNAUTHORIZED).json(formatErrorResponse('Access token missing'));
-  }
-  jwt.verify(token, config.auth?.jwtSecret || 'supersecretkey', (err, user) => {
-    if (err) {
-      return res.status(HTTP_STATUS.FORBIDDEN).json(formatErrorResponse('Invalid or expired token'));
+/**
+ * Middleware to verify JWT token and authenticate user
+ */
+const verifyToken = (req, res, next) => {
+  try {
+    // Get token from Authorization header
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json(
+        formatErrorResponse('Access token is required', 'AUTH_001')
+      );
     }
-    req.user = user;
-    next();
-  });
-}
+
+    // Check if token format is correct (Bearer token)
+    if (!authHeader.startsWith('Bearer ')) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json(
+        formatErrorResponse('Invalid token format. Use Bearer token', 'AUTH_001')
+      );
+    }
+
+    // Extract token
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    if (!token) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json(
+        formatErrorResponse('Access token is required', 'AUTH_001')
+      );
+    }
+
+    // Verify token
+    jwt.verify(token, config.jwt.secret, (err, decoded) => {
+      if (err) {
+        logger.warn('Token verification failed', { 
+          error: err.message,
+          ip: req.ip,
+          userAgent: req.get('User-Agent')
+        });
+
+        if (err.name === 'TokenExpiredError') {
+          return res.status(HTTP_STATUS.UNAUTHORIZED).json(
+            formatErrorResponse('Token has expired', 'AUTH_002')
+          );
+        } else if (err.name === 'JsonWebTokenError') {
+          return res.status(HTTP_STATUS.UNAUTHORIZED).json(
+            formatErrorResponse('Invalid token', 'AUTH_001')
+          );
+        } else {
+          return res.status(HTTP_STATUS.UNAUTHORIZED).json(
+            formatErrorResponse('Token verification failed', 'AUTH_001')
+          );
+        }
+      }
+
+      // Token is valid, attach user info to request
+      req.user = {
+        id: decoded.id,
+        username: decoded.username,
+        email: decoded.email,
+        is_admin: decoded.is_admin || false
+      };
+
+      logger.debug('Token verified successfully', { 
+        userId: decoded.id,
+        username: decoded.username
+      });
+
+      next();
+    });
+  } catch (error) {
+    logger.error('Error in token verification middleware', { 
+      error: error.message,
+      ip: req.ip
+    });
+
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      formatErrorResponse('Authentication error', 'AUTH_001')
+    );
+  }
+};
 
 module.exports = verifyToken;

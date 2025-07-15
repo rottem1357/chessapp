@@ -1,91 +1,139 @@
-/**
- * Error Handling Middleware
- * Centralized error handling for the chess application
- */
-
-const logger = require('../utils/logger');
-const { HTTP_STATUS, ERROR_MESSAGES } = require('../utils/constants');
+// middleware/errorHandler.js
+const { HTTP_STATUS } = require('../utils/constants');
 const { formatErrorResponse } = require('../utils/helpers');
+const logger = require('../utils/logger');
 
 /**
- * Error handler middleware
- * @param {Error} err - Error object
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Next middleware function
+ * Global error handling middleware
  */
-function errorHandler(err, req, res, next) {
-  // Log the error
+const errorHandler = (err, req, res, next) => {
   logger.error('Unhandled error', {
     error: err.message,
     stack: err.stack,
-    url: req.url,
+    path: req.path,
     method: req.method,
     ip: req.ip,
-    userAgent: req.get('User-Agent')
+    userAgent: req.get('User-Agent'),
+    userId: req.user?.id
   });
 
-  // Don't leak error details in production
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  
   // Default error response
   let statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR;
-  let message = ERROR_MESSAGES.INTERNAL_SERVER_ERROR || 'Internal server error';
-  let details = null;
+  let message = 'Internal server error';
+  let errorCode = 'INTERNAL_ERROR';
 
   // Handle specific error types
   if (err.name === 'ValidationError') {
     statusCode = HTTP_STATUS.BAD_REQUEST;
     message = 'Validation error';
-    details = isDevelopment ? err.message : null;
-  } else if (err.name === 'CastError') {
+    errorCode = 'VALIDATION_001';
+  } else if (err.name === 'SequelizeValidationError') {
     statusCode = HTTP_STATUS.BAD_REQUEST;
-    message = 'Invalid ID format';
-    details = isDevelopment ? err.message : null;
-  } else if (err.code === 11000) {
+    message = 'Database validation error';
+    errorCode = 'VALIDATION_001';
+  } else if (err.name === 'SequelizeUniqueConstraintError') {
     statusCode = HTTP_STATUS.CONFLICT;
-    message = 'Duplicate entry';
-    details = isDevelopment ? err.message : null;
-  } else if (err.status) {
-    statusCode = err.status;
+    message = 'Resource already exists';
+    errorCode = 'CONFLICT_ERROR';
+  } else if (err.name === 'SequelizeForeignKeyConstraintError') {
+    statusCode = HTTP_STATUS.BAD_REQUEST;
+    message = 'Invalid reference';
+    errorCode = 'FOREIGN_KEY_ERROR';
+  } else if (err.name === 'JsonWebTokenError') {
+    statusCode = HTTP_STATUS.UNAUTHORIZED;
+    message = 'Invalid token';
+    errorCode = 'AUTH_001';
+  } else if (err.name === 'TokenExpiredError') {
+    statusCode = HTTP_STATUS.UNAUTHORIZED;
+    message = 'Token expired';
+    errorCode = 'AUTH_002';
+  } else if (err.statusCode) {
+    // Custom error with status code
+    statusCode = err.statusCode;
     message = err.message;
+    errorCode = err.code || 'CUSTOM_ERROR';
   }
 
-  // Send error response
-  res.status(statusCode).json(formatErrorResponse(message, details));
-}
+  // Don't expose internal error details in production
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const errorDetails = isDevelopment ? {
+    stack: err.stack,
+    details: err
+  } : undefined;
+
+  res.status(statusCode).json(
+    formatErrorResponse(message, errorCode, errorDetails)
+  );
+};
 
 /**
  * 404 Not Found handler
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
  */
-function notFoundHandler(req, res) {
+const notFoundHandler = (req, res) => {
   logger.warn('Route not found', {
-    url: req.url,
+    path: req.path,
+    method: req.method,
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+
+  res.status(HTTP_STATUS.NOT_FOUND).json(
+    formatErrorResponse(
+      `Route ${req.method} ${req.path} not found`,
+      'ROUTE_NOT_FOUND'
+    )
+  );
+};
+
+/**
+ * Async error wrapper
+ * Wraps async route handlers to catch errors and pass to error middleware
+ */
+const asyncHandler = (fn) => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+
+/**
+ * Rate limit error handler
+ */
+const rateLimitHandler = (req, res) => {
+  logger.warn('Rate limit exceeded', {
+    ip: req.ip,
+    path: req.path,
+    method: req.method,
+    userAgent: req.get('User-Agent')
+  });
+
+  res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json(
+    formatErrorResponse(
+      'Too many requests. Please try again later.',
+      'RATE_LIMIT_001'
+    )
+  );
+};
+
+/**
+ * Request timeout handler
+ */
+const timeoutHandler = (req, res) => {
+  logger.warn('Request timeout', {
+    path: req.path,
     method: req.method,
     ip: req.ip
   });
 
-  res.status(HTTP_STATUS.NOT_FOUND).json(
-    formatErrorResponse('Route not found')
+  res.status(HTTP_STATUS.REQUEST_TIMEOUT).json(
+    formatErrorResponse(
+      'Request timeout. Please try again.',
+      'TIMEOUT_ERROR'
+    )
   );
-}
-
-/**
- * Async error wrapper
- * Wraps async route handlers to catch errors
- * @param {Function} fn - Async function to wrap
- * @returns {Function} Wrapped function
- */
-function asyncHandler(fn) {
-  return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-}
+};
 
 module.exports = {
   errorHandler,
   notFoundHandler,
-  asyncHandler
+  asyncHandler,
+  rateLimitHandler,
+  timeoutHandler
 };

@@ -1,13 +1,13 @@
+// routes/openings.js
 const express = require('express');
 const { asyncHandler } = require('../middleware/errorHandler');
-const {
-  getAllOpenings,
-  getOpeningByCode
-} = require('../controllers/openingController');
+const { validateOpeningQuery } = require('../middleware/validation');
+const openingController = require('../controllers/openingController');
 
 const router = express.Router();
 
-router.get('/openings', asyncHandler(getAllOpenings));
-router.get('/openings/:ecoCode', asyncHandler(getOpeningByCode));
+// Public routes
+router.get('/', validateOpeningQuery, asyncHandler(openingController.searchOpenings));
+router.get('/:openingId', asyncHandler(openingController.getOpeningDetails));
 
 module.exports = router;

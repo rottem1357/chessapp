@@ -1,292 +1,872 @@
+// middleware/validation.js
+const { body, query, param, validationResult } = require('express-validator');
+const { HTTP_STATUS } = require('../utils/constants');
+const { formatErrorResponse } = require('../utils/helpers');
+
 /**
- * Validate registration data
+ * Handle validation errors middleware
  */
-function validateRegister(req, res, next) {
-  const { username, email, password } = req.body;
-  if (!username || !email || !password) {
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const errorMessages = errors.array().map(error => ({
+      field: error.param,
+      message: error.msg,
+      value: error.value,
+      location: error.location
+    }));
+    
     return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse('Username, email, and password are required')
+      formatErrorResponse('Validation failed', 'VALIDATION_001', { errors: errorMessages })
     );
-  }
-  // Basic email format check
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse('Invalid email format')
-    );
-  }
-  next();
-}
-
-/**
- * Validate login data
- */
-function validateLogin(req, res, next) {
-  const { username, email, password } = req.body;
-  if ((!username && !email) || !password) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse('Username or email and password are required')
-    );
-  }
-  next();
-}
-
-/**
- * Validate password reset request data
- */
-function validatePasswordResetRequest(req, res, next) {
-  const { email } = req.body;
-  if (!email) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse('Email is required')
-    );
-  }
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse('Invalid email format')
-    );
-  }
-  next();
-}
-
-/**
- * Validate password reset confirmation data
- */
-function validatePasswordResetConfirm(req, res, next) {
-  const { reset_token, new_password } = req.body;
-  if (!reset_token || !new_password) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse('Reset token and new password are required')
-    );
-  }
-  next();
-}
-/**
- * Validation Middleware
- * Input validation middleware for the chess application
- */
-
-const { HTTP_STATUS, ERROR_MESSAGES } = require('../utils/constants');
-const { 
-  isValidUUID, 
-  isValidPlayerName, 
-  isValidChatMessage,
-  formatErrorResponse 
-} = require('../utils/helpers');
-
-/**
- * Validate game ID parameter
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Next middleware function
- */
-function validateGameId(req, res, next) {
-  const { gameId } = req.params;
-  
-  if (!gameId || !isValidUUID(gameId)) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse('Invalid game ID')
-    );
-  }
-  
-  next();
-}
-
-/**
- * Validate player data
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Next middleware function
- */
-function validatePlayerData(req, res, next) {
-  const { name } = req.body;
-  
-  if (name && !isValidPlayerName(name)) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse(ERROR_MESSAGES.INVALID_PLAYER_NAME)
-    );
-  }
-  
-  next();
-}
-
-/**
- * Validate chat message
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Next middleware function
- */
-function validateChatMessage(req, res, next) {
-  const { message } = req.body;
-  
-  if (!message || !isValidChatMessage(message)) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse(ERROR_MESSAGES.CHAT_MESSAGE_TOO_LONG)
-    );
-  }
-  
-  next();
-}
-
-/**
- * Validate move data
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Next middleware function
- */
-function validateMoveData(req, res, next) {
-  const { move } = req.body;
-  
-  if (!move) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse('Move is required')
-    );
-  }
-  
-  // Basic move validation - the chess library will do more detailed validation
-  if (typeof move !== 'string' && typeof move !== 'object') {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse(ERROR_MESSAGES.INVALID_MOVE)
-    );
-  }
-  
-  next();
-}
-
-/**
- * Validate AI game creation data
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Next middleware function
- */
-function validateAIGameData(req, res, next) {
-  const { difficulty, playerColor } = req.body;
-  
-  // Validate difficulty
-  if (difficulty) {
-    const validDifficulties = ['beginner', 'intermediate', 'advanced', 'expert'];
-    if (!validDifficulties.includes(difficulty)) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatErrorResponse(ERROR_MESSAGES.INVALID_DIFFICULTY)
-      );
-    }
-  }
-  
-  // Validate player color
-  if (playerColor) {
-    const validColors = ['white', 'black'];
-    if (!validColors.includes(playerColor)) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatErrorResponse('Invalid player color')
-      );
-    }
-  }
-  
-  next();
-}
-
-/**
- * Validate request body exists
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Next middleware function
- */
-function validateRequestBody(req, res, next) {
-  if (!req.body || Object.keys(req.body).length === 0) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse('Request body is required')
-    );
-  }
-  
-  next();
-}
-
-/**
- * Validate pagination parameters
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Next middleware function
- */
-function validatePagination(req, res, next) {
-  const { page, limit } = req.query;
-  
-  if (page !== undefined) {
-    const pageNum = parseInt(page, 10);
-    if (isNaN(pageNum) || pageNum < 1) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatErrorResponse('Page must be a positive integer')
-      );
-    }
-    req.query.page = pageNum;
-  }
-  
-  if (limit !== undefined) {
-    const limitNum = parseInt(limit, 10);
-    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatErrorResponse('Limit must be between 1 and 100')
-      );
-    }
-    req.query.limit = limitNum;
-  }
-  
-  next();
-}
-
-/**
- * Validate Authorization Token
- * Checks for presence and format of Bearer token in Authorization header
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Next middleware function
- */
-function validateAuthToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(HTTP_STATUS.UNAUTHORIZED).json(
-      formatErrorResponse('Authorization token missing or invalid format')
-    );
-  }
-  next();
-}
-
-function validateGameId(req, res, next) {
-  const { gameId } = req.params;
-  if (!gameId || typeof gameId !== 'string') {
-    return res.status(400).json({ error: 'Invalid game ID' });
   }
   next();
 };
 
-function validateMoveId(req, res, next) {
-  const { moveId } = req.params;
-  if (!moveId || isNaN(parseInt(moveId))) {
-    return res.status(400).json({ error: 'Invalid move ID' });
-  }
-  next();
-};
+// =============================================================================
+// AUTHENTICATION VALIDATIONS
+// =============================================================================
 
-function validateMoveData(req, res, next) {
-  const { san, lan, fen, playerColor } = req.body;
-  if (!san || !lan || !fen || !['white', 'black'].includes(playerColor)) {
-    return res.status(400).json({ error: 'Missing or invalid move data' });
-  }
-  next();
-};
+/**
+ * Validate user registration
+ */
+const validateRegister = [
+  body('username')
+    .trim()
+    .isLength({ min: 3, max: 50 })
+    .withMessage('Username must be between 3-50 characters')
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage('Username can only contain letters, numbers, and underscores')
+    .toLowerCase(),
+  
+  body('email')
+    .trim()
+    .isEmail()
+    .withMessage('Must be a valid email address')
+    .normalizeEmail()
+    .isLength({ max: 255 })
+    .withMessage('Email must not exceed 255 characters'),
+  
+  body('password')
+    .isLength({ min: 8, max: 128 })
+    .withMessage('Password must be between 8-128 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Password must contain at least one lowercase letter, one uppercase letter, and one number'),
+  
+  body('display_name')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Display name must be between 1-100 characters')
+    .matches(/^[a-zA-Z0-9\s\-_.]+$/)
+    .withMessage('Display name can only contain letters, numbers, spaces, hyphens, underscores, and dots'),
+  
+  body('country')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 2 })
+    .withMessage('Country code must be exactly 2 characters')
+    .isAlpha()
+    .withMessage('Country code must contain only letters')
+    .toUpperCase(),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate user login
+ */
+const validateLogin = [
+  body('username')
+    .trim()
+    .notEmpty()
+    .withMessage('Username or email is required')
+    .isLength({ max: 255 })
+    .withMessage('Username/email must not exceed 255 characters'),
+  
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required')
+    .isLength({ max: 128 })
+    .withMessage('Password must not exceed 128 characters'),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate password reset request
+ */
+const validatePasswordResetRequest = [
+  body('email')
+    .trim()
+    .isEmail()
+    .withMessage('Must be a valid email address')
+    .normalizeEmail()
+    .isLength({ max: 255 })
+    .withMessage('Email must not exceed 255 characters'),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate password reset confirmation
+ */
+const validatePasswordResetConfirm = [
+  body('reset_token')
+    .trim()
+    .notEmpty()
+    .withMessage('Reset token is required')
+    .isUUID()
+    .withMessage('Reset token must be a valid UUID'),
+  
+  body('new_password')
+    .isLength({ min: 8, max: 128 })
+    .withMessage('Password must be between 8-128 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Password must contain at least one lowercase letter, one uppercase letter, and one number'),
+  
+  handleValidationErrors
+];
+
+// =============================================================================
+// USER MANAGEMENT VALIDATIONS
+// =============================================================================
+
+/**
+ * Validate profile update
+ */
+const validateUpdateProfile = [
+  body('display_name')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Display name must be between 1-100 characters')
+    .matches(/^[a-zA-Z0-9\s\-_.]+$/)
+    .withMessage('Display name can only contain letters, numbers, spaces, hyphens, underscores, and dots'),
+  
+  body('bio')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Bio must not exceed 500 characters'),
+  
+  body('country')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 2 })
+    .withMessage('Country code must be exactly 2 characters')
+    .isAlpha()
+    .withMessage('Country code must contain only letters')
+    .toUpperCase(),
+  
+  body('avatar_url')
+    .optional()
+    .trim()
+    .isURL({ protocols: ['http', 'https'], require_protocol: true })
+    .withMessage('Avatar URL must be a valid HTTPS URL')
+    .isLength({ max: 500 })
+    .withMessage('Avatar URL must not exceed 500 characters'),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate user search
+ */
+const validateUserSearch = [
+  query('q')
+    .trim()
+    .notEmpty()
+    .withMessage('Search query is required')
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Search query must be between 2-50 characters')
+    .matches(/^[a-zA-Z0-9\s\-_.]+$/)
+    .withMessage('Search query contains invalid characters'),
+  
+  query('page')
+    .optional()
+    .isInt({ min: 1, max: 1000 })
+    .withMessage('Page must be between 1-1000')
+    .toInt(),
+  
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage('Limit must be between 1-50')
+    .toInt(),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate user preferences update
+ */
+const validateUserPreferences = [
+  body('board_theme')
+    .optional()
+    .isIn(['green', 'brown', 'blue', 'grey', 'wood', 'marble'])
+    .withMessage('Invalid board theme'),
+  
+  body('piece_set')
+    .optional()
+    .isIn(['classic', 'modern', 'medieval', 'fantasy', 'minimalist'])
+    .withMessage('Invalid piece set'),
+  
+  body('sound_enabled')
+    .optional()
+    .isBoolean()
+    .withMessage('Sound enabled must be a boolean'),
+  
+  body('move_sound')
+    .optional()
+    .isIn(['standard', 'wood', 'futuristic', 'silent'])
+    .withMessage('Invalid move sound'),
+  
+  body('show_coordinates')
+    .optional()
+    .isBoolean()
+    .withMessage('Show coordinates must be a boolean'),
+  
+  body('show_legal_moves')
+    .optional()
+    .isBoolean()
+    .withMessage('Show legal moves must be a boolean'),
+  
+  body('auto_queen_promotion')
+    .optional()
+    .isBoolean()
+    .withMessage('Auto queen promotion must be a boolean'),
+  
+  body('confirm_resignation')
+    .optional()
+    .isBoolean()
+    .withMessage('Confirm resignation must be a boolean'),
+  
+  body('enable_premoves')
+    .optional()
+    .isBoolean()
+    .withMessage('Enable premoves must be a boolean'),
+  
+  body('show_chat')
+    .optional()
+    .isBoolean()
+    .withMessage('Show chat must be a boolean'),
+  
+  body('allow_challenges')
+    .optional()
+    .isBoolean()
+    .withMessage('Allow challenges must be a boolean'),
+  
+  body('allow_friend_requests')
+    .optional()
+    .isBoolean()
+    .withMessage('Allow friend requests must be a boolean'),
+  
+  body('email_notifications')
+    .optional()
+    .isBoolean()
+    .withMessage('Email notifications must be a boolean'),
+  
+  body('game_notifications')
+    .optional()
+    .isBoolean()
+    .withMessage('Game notifications must be a boolean'),
+  
+  body('timezone')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Timezone must not exceed 50 characters'),
+  
+  body('language')
+    .optional()
+    .trim()
+    .matches(/^[a-z]{2}(_[A-Z]{2})?$/)
+    .withMessage('Language must be in format "en" or "en_US"'),
+  
+  handleValidationErrors
+];
+
+// =============================================================================
+// GAME VALIDATIONS
+// =============================================================================
+
+/**
+ * Validate game creation
+ */
+const validateCreateGame = [
+  body('game_type')
+    .optional()
+    .isIn(['rapid', 'blitz', 'bullet', 'classical', 'correspondence'])
+    .withMessage('Game type must be rapid, blitz, bullet, classical, or correspondence'),
+  
+  body('time_control')
+    .optional()
+    .matches(/^\d+\+\d+$/)
+    .withMessage('Time control must be in format "minutes+increment" (e.g., "10+0")')
+    .custom((value) => {
+      const [minutes, increment] = value.split('+').map(Number);
+      if (minutes < 0.5 || minutes > 180) {
+        throw new Error('Time limit must be between 0.5 and 180 minutes');
+      }
+      if (increment < 0 || increment > 60) {
+        throw new Error('Increment must be between 0 and 60 seconds');
+      }
+      return true;
+    }),
+  
+  body('time_limit_seconds')
+    .optional()
+    .isInt({ min: 30, max: 10800 }) // 30 seconds to 3 hours
+    .withMessage('Time limit must be between 30 seconds and 3 hours')
+    .toInt(),
+  
+  body('increment_seconds')
+    .optional()
+    .isInt({ min: 0, max: 60 })
+    .withMessage('Increment must be between 0-60 seconds')
+    .toInt(),
+  
+  body('is_rated')
+    .optional()
+    .isBoolean()
+    .withMessage('Is rated must be a boolean'),
+  
+  body('is_private')
+    .optional()
+    .isBoolean()
+    .withMessage('Is private must be a boolean'),
+  
+  body('password')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Password must be between 1-50 characters')
+    .if(body('is_private').equals(true))
+    .notEmpty()
+    .withMessage('Password is required for private games'),
+  
+  body('preferred_color')
+    .optional()
+    .isIn(['white', 'black', 'random'])
+    .withMessage('Preferred color must be white, black, or random'),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate joining a game
+ */
+const validateJoinGame = [
+  param('gameId')
+    .isUUID()
+    .withMessage('Game ID must be a valid UUID'),
+  
+  body('password')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Password must be between 1-50 characters'),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate making a move
+ */
+const validateMakeMove = [
+  param('gameId')
+    .isUUID()
+    .withMessage('Game ID must be a valid UUID'),
+  
+  body('move')
+    .trim()
+    .notEmpty()
+    .withMessage('Move is required')
+    .isLength({ min: 2, max: 10 })
+    .withMessage('Move must be between 2-10 characters'),
+  
+  body('time_spent_ms')
+    .optional()
+    .isInt({ min: 0, max: 3600000 }) // Max 1 hour per move
+    .withMessage('Time spent must be between 0 and 3600000 milliseconds')
+    .toInt(),
+  
+  body('promotion')
+    .optional()
+    .isIn(['q', 'r', 'b', 'n', 'Q', 'R', 'B', 'N'])
+    .withMessage('Promotion piece must be q, r, b, or n')
+    .toLowerCase(),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate game query parameters
+ */
+const validateGameQuery = [
+  query('page')
+    .optional()
+    .isInt({ min: 1, max: 1000 })
+    .withMessage('Page must be between 1-1000')
+    .toInt(),
+  
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage('Limit must be between 1-50')
+    .toInt(),
+  
+  query('game_type')
+    .optional()
+    .isIn(['rapid', 'blitz', 'bullet', 'classical', 'correspondence'])
+    .withMessage('Invalid game type'),
+  
+  query('status')
+    .optional()
+    .isIn(['waiting', 'active', 'finished', 'aborted', 'abandoned'])
+    .withMessage('Invalid status'),
+  
+  query('is_rated')
+    .optional()
+    .isBoolean()
+    .withMessage('Is rated must be a boolean'),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate draw action
+ */
+const validateDrawAction = [
+  param('gameId')
+    .isUUID()
+    .withMessage('Game ID must be a valid UUID'),
+  
+  body('action')
+    .isIn(['accept', 'decline'])
+    .withMessage('Action must be accept or decline'),
+  
+  handleValidationErrors
+];
+
+// =============================================================================
+// AI GAME VALIDATIONS
+// =============================================================================
+
+/**
+ * Validate AI game creation
+ */
+const validateCreateAIGame = [
+  body('difficulty')
+    .isIn(['beginner', 'easy', 'intermediate', 'hard', 'expert', 'master'])
+    .withMessage('Difficulty must be beginner, easy, intermediate, hard, expert, or master'),
+  
+  body('time_control')
+    .optional()
+    .matches(/^\d+\+\d+$/)
+    .withMessage('Time control must be in format "minutes+increment"'),
+  
+  body('user_color')
+    .optional()
+    .isIn(['white', 'black', 'random'])
+    .withMessage('User color must be white, black, or random'),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate AI move
+ */
+const validateAIMove = [
+  param('gameId')
+    .isUUID()
+    .withMessage('Game ID must be a valid UUID'),
+  
+  body('move')
+    .trim()
+    .notEmpty()
+    .withMessage('Move is required')
+    .isLength({ min: 2, max: 10 })
+    .withMessage('Move must be between 2-10 characters'),
+  
+  body('time_spent_ms')
+    .optional()
+    .isInt({ min: 0, max: 3600000 })
+    .withMessage('Time spent must be between 0 and 3600000 milliseconds')
+    .toInt(),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate AI hint request
+ */
+const validateAIHint = [
+  param('gameId')
+    .isUUID()
+    .withMessage('Game ID must be a valid UUID'),
+  
+  handleValidationErrors
+];
+
+// =============================================================================
+// MATCHMAKING VALIDATIONS
+// =============================================================================
+
+/**
+ * Validate joining matchmaking queue
+ */
+const validateJoinQueue = [
+  body('game_type')
+    .isIn(['rapid', 'blitz', 'bullet'])
+    .withMessage('Game type must be rapid, blitz, or bullet'),
+  
+  body('time_control')
+    .optional()
+    .matches(/^\d+\+\d+$/)
+    .withMessage('Time control must be in format "minutes+increment"'),
+  
+  body('rating_range')
+    .optional()
+    .isObject()
+    .withMessage('Rating range must be an object'),
+  
+  body('rating_range.min')
+    .optional()
+    .isInt({ min: 400, max: 3000 })
+    .withMessage('Minimum rating must be between 400-3000')
+    .toInt(),
+  
+  body('rating_range.max')
+    .optional()
+    .isInt({ min: 400, max: 3000 })
+    .withMessage('Maximum rating must be between 400-3000')
+    .toInt()
+    .custom((max, { req }) => {
+      if (req.body.rating_range && req.body.rating_range.min && max <= req.body.rating_range.min) {
+        throw new Error('Maximum rating must be greater than minimum rating');
+      }
+      return true;
+    }),
+  
+  handleValidationErrors
+];
+
+// =============================================================================
+// PUZZLE VALIDATIONS
+// =============================================================================
+
+/**
+ * Validate puzzle query parameters
+ */
+const validatePuzzleQuery = [
+  query('rating')
+    .optional()
+    .isInt({ min: 400, max: 3000 })
+    .withMessage('Rating must be between 400-3000')
+    .toInt(),
+  
+  query('themes')
+    .optional()
+    .isString()
+    .withMessage('Themes must be a string')
+    .custom((themes) => {
+      const validThemes = [
+        'fork', 'pin', 'skewer', 'discovery', 'deflection', 'decoy',
+        'sacrifice', 'mate_in_1', 'mate_in_2', 'mate_in_3', 'endgame',
+        'opening', 'middlegame', 'tactics', 'strategy'
+      ];
+      const themeList = themes.split(',').map(t => t.trim());
+      const invalidThemes = themeList.filter(t => !validThemes.includes(t));
+      if (invalidThemes.length > 0) {
+        throw new Error(`Invalid themes: ${invalidThemes.join(', ')}`);
+      }
+      return true;
+    }),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate puzzle attempt submission
+ */
+const validatePuzzleAttempt = [
+  param('puzzleId')
+    .isUUID()
+    .withMessage('Puzzle ID must be a valid UUID'),
+  
+  body('moves')
+    .isArray({ min: 1, max: 20 })
+    .withMessage('Moves must be an array with 1-20 elements'),
+  
+  body('moves.*')
+    .trim()
+    .isLength({ min: 2, max: 10 })
+    .withMessage('Each move must be between 2-10 characters'),
+  
+  body('time_spent_ms')
+    .isInt({ min: 0, max: 1800000 }) // Max 30 minutes
+    .withMessage('Time spent must be between 0 and 1800000 milliseconds')
+    .toInt(),
+  
+  handleValidationErrors
+];
+
+// =============================================================================
+// FRIEND VALIDATIONS
+// =============================================================================
+
+/**
+ * Validate friend request
+ */
+const validateFriendRequest = [
+  body('user_id')
+    .isUUID()
+    .withMessage('User ID must be a valid UUID'),
+  
+  body('message')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Message must not exceed 500 characters'),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate friend request response
+ */
+const validateFriendResponse = [
+  param('requestId')
+    .isUUID()
+    .withMessage('Request ID must be a valid UUID'),
+  
+  body('action')
+    .isIn(['accept', 'decline'])
+    .withMessage('Action must be accept or decline'),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate game challenge
+ */
+const validateGameChallenge = [
+  param('friendId')
+    .isUUID()
+    .withMessage('Friend ID must be a valid UUID'),
+  
+  body('game_type')
+    .isIn(['rapid', 'blitz', 'bullet', 'classical'])
+    .withMessage('Game type must be rapid, blitz, bullet, or classical'),
+  
+  body('time_control')
+    .matches(/^\d+\+\d+$/)
+    .withMessage('Time control must be in format "minutes+increment"'),
+  
+  body('color')
+    .optional()
+    .isIn(['white', 'black', 'random'])
+    .withMessage('Color must be white, black, or random'),
+  
+  body('message')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Message must not exceed 500 characters'),
+  
+  handleValidationErrors
+];
+
+// =============================================================================
+// RATING VALIDATIONS
+// =============================================================================
+
+/**
+ * Validate leaderboard query
+ */
+const validateLeaderboardQuery = [
+  query('type')
+    .optional()
+    .isIn(['rapid', 'blitz', 'bullet', 'puzzle'])
+    .withMessage('Type must be rapid, blitz, bullet, or puzzle'),
+  
+  query('page')
+    .optional()
+    .isInt({ min: 1, max: 1000 })
+    .withMessage('Page must be between 1-1000')
+    .toInt(),
+  
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1-100')
+    .toInt(),
+  
+  handleValidationErrors
+];
+
+// =============================================================================
+// OPENING VALIDATIONS
+// =============================================================================
+
+/**
+ * Validate opening search query
+ */
+const validateOpeningQuery = [
+  query('search')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Search term must be between 2-100 characters')
+    .matches(/^[a-zA-Z0-9\s\-'.,]+$/)
+    .withMessage('Search term contains invalid characters'),
+  
+  query('eco')
+    .optional()
+    .trim()
+    .matches(/^[A-E]\d{2}$/)
+    .withMessage('ECO code must be in format A00-E99')
+    .toUpperCase(),
+  
+  query('page')
+    .optional()
+    .isInt({ min: 1, max: 1000 })
+    .withMessage('Page must be between 1-1000')
+    .toInt(),
+  
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage('Limit must be between 1-50')
+    .toInt(),
+  
+  handleValidationErrors
+];
+
+// =============================================================================
+// ADMIN VALIDATIONS
+// =============================================================================
+
+/**
+ * Validate admin query parameters
+ */
+const validateAdminQuery = [
+  query('page')
+    .optional()
+    .isInt({ min: 1, max: 1000 })
+    .withMessage('Page must be between 1-1000')
+    .toInt(),
+  
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1-100')
+    .toInt(),
+  
+  query('status')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Status must be between 1-50 characters'),
+  
+  query('search')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Search term must be between 2-100 characters'),
+  
+  handleValidationErrors
+];
+
+// =============================================================================
+// UTILITY VALIDATIONS
+// =============================================================================
+
+/**
+ * Validate UUID parameter
+ */
+const validateUUIDParam = (paramName) => [
+  param(paramName)
+    .isUUID()
+    .withMessage(`${paramName} must be a valid UUID`),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate pagination query parameters
+ */
+const validatePagination = [
+  query('page')
+    .optional()
+    .isInt({ min: 1, max: 1000 })
+    .withMessage('Page must be between 1-1000')
+    .toInt(),
+  
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1-100')
+    .toInt(),
+  
+  handleValidationErrors
+];
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
 
 module.exports = {
-  validateGameId,
-  validatePlayerData,
-  validateChatMessage,
-  validateMoveData,
-  validateAIGameData,
-  validateRequestBody,
-  validatePagination,
-  validateAuthToken,
+  // Core validation function
+  handleValidationErrors,
+  
+  // Authentication
   validateRegister,
   validateLogin,
   validatePasswordResetRequest,
   validatePasswordResetConfirm,
-  validateGameId,
-  validateMoveData,
-  validateMoveId
+  
+  // User management
+  validateUpdateProfile,
+  validateUserSearch,
+  validateUserPreferences,
+  
+  // Game management
+  validateCreateGame,
+  validateJoinGame,
+  validateMakeMove,
+  validateGameQuery,
+  validateDrawAction,
+  
+  // AI games
+  validateCreateAIGame,
+  validateAIMove,
+  validateAIHint,
+  
+  // Matchmaking
+  validateJoinQueue,
+  
+  // Puzzles
+  validatePuzzleQuery,
+  validatePuzzleAttempt,
+  
+  // Friends
+  validateFriendRequest,
+  validateFriendResponse,
+  validateGameChallenge,
+  
+  // Ratings
+  validateLeaderboardQuery,
+  
+  // Openings
+  validateOpeningQuery,
+  
+  // Admin
+  validateAdminQuery,
+  
+  // Utilities
+  validateUUIDParam,
+  validatePagination
 };

@@ -18,7 +18,7 @@ const { requestLogger } = require('./middleware/requestLogger');
 
 // Import routes
 const gameRoutes = require('./routes/games');
-const aiRoutes = require('./routes/aiGame');
+const aiRoutes = require('./routes/ai');
 const authRoutes = require('./routes/auth');
 
 // Import services

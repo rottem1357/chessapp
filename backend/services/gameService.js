@@ -1,570 +1,867 @@
-/**
- * Game Service
- * Handles multiplayer game logic and state management
- */
-
+// services/gameService.js
 const { Chess } = require('chess.js');
-const { 
-  GAME_STATUS, 
-  COLORS, 
-  ERROR_MESSAGES,
-  DEFAULT_RATING,
-  BOARD 
-} = require('../utils/constants');
-const { 
-  generateGameId, 
-  generatePlayerId,
-  getCurrentTimestamp,
-  sanitizePlayerName 
-} = require('../utils/helpers');
+const db = require('../models');
 const logger = require('../utils/logger');
-const config = require('../config');
 
 class GameService {
-  constructor() {
-    this.games = new Map();
-    this.waitingPlayers = [];
-    this.maxGames = config.game.maxGames;
-    this.gameTimeout = config.game.gameTimeout;
+  /**
+   * Create a new game
+   */
+  async createGame(userId, gameData) {
+    const transaction = await db.sequelize.transaction();
     
-    // Start cleanup interval
-    this.startCleanupInterval();
-  }
-
-  /**
-   * Create a new multiplayer game
-   * @param {Object} playerData - Player information
-   * @returns {Object} Created game data
-   */
-  createGame(playerData = {}) {
     try {
-      if (this.games.size >= this.maxGames) {
-        throw new Error('Maximum number of games reached');
+      const user = await db.User.findByPk(userId, { transaction });
+      if (!user) {
+        throw new Error('User not found');
       }
 
-      const gameId = generateGameId();
-      const chess = new Chess();
-      
-      const game = {
-        id: gameId,
-        chess,
-        players: [],
-        white: null,
-        black: null,
-        status: GAME_STATUS.WAITING,
-        fen: chess.fen(),
-        moves: [],
-        createdAt: new Date(),
-        lastActivity: new Date(),
-        spectators: [],
-        chatMessages: []
-      };
+      // Parse time control
+      const [minutes, increment] = (gameData.time_control || '10+0').split('+').map(Number);
+      const timeLimit = gameData.time_limit_seconds || (minutes * 60);
+      const incrementSeconds = gameData.increment_seconds || increment;
 
-      this.games.set(gameId, game);
+      // Create game
+      const game = await db.Game.create({
+        game_type: gameData.game_type || 'rapid',
+        time_control: gameData.time_control || '10+0',
+        time_limit_seconds: timeLimit,
+        increment_seconds: incrementSeconds,
+        is_rated: gameData.is_rated !== false,
+        is_private: gameData.is_private || false,
+        password: gameData.password || null,
+        white_time_remaining: timeLimit * 1000,
+        black_time_remaining: timeLimit * 1000
+      }, { transaction });
+
+      // Determine color
+      let color = gameData.preferred_color || 'random';
+      if (color === 'random') {
+        color = Math.random() > 0.5 ? 'white' : 'black';
+      }
+
+      // Get user's rating for this game type
+      const ratingField = `rating_${gameData.game_type || 'rapid'}`;
+      const currentRating = user[ratingField] || user.rating_rapid;
+
+      // Create player
+      await db.Player.create({
+        game_id: game.id,
+        user_id: userId,
+        color: color,
+        rating_before: currentRating
+      }, { transaction });
+
+      await transaction.commit();
       
-      logger.info('Created new multiplayer game', { gameId });
+      logger.info('Game created', { gameId: game.id, userId, gameType: game.game_type });
       
-      return this.formatGameResponse(game);
+      return await this.getGameById(game.id);
     } catch (error) {
-      logger.error('Error creating game', { error: error.message, playerData });
+      await transaction.rollback();
+      logger.error('Failed to create game', { error: error.message, userId });
       throw error;
     }
   }
 
   /**
-   * Join a game or matchmaking queue
-   * @param {string} gameId - Game ID to join (optional)
-   * @param {Object} playerData - Player information
-   * @returns {Object} Join result
+   * Join an existing game
    */
-  joinGame(gameId = null, playerData = {}) {
+  async joinGame(gameId, userId, password = null) {
+    const transaction = await db.sequelize.transaction();
+    
     try {
-      const player = this.createPlayer(playerData);
-      
-      if (gameId) {
-        // Join specific game
-        const game = this.games.get(gameId);
-        if (!game) {
-          return { error: ERROR_MESSAGES.GAME_NOT_FOUND };
-        }
-        
-        if (game.players.length >= 2) {
-          return { error: 'Game is full' };
-        }
-        
-        return this.addPlayerToGame(game, player);
-      } else {
-        // Join matchmaking queue
-        return this.joinMatchmakingQueue(player);
-      }
-    } catch (error) {
-      logger.error('Error joining game', { error: error.message, gameId, playerData });
-      throw error;
-    }
-  }
+      const game = await db.Game.findByPk(gameId, {
+        include: [{
+          model: db.Player,
+          as: 'players',
+          include: [{ 
+            model: db.User, 
+            as: 'user',
+            attributes: ['id', 'username', 'display_name']
+          }]
+        }],
+        transaction
+      });
 
-  /**
-   * Leave a game
-   * @param {string} gameId - Game identifier
-   * @param {string} playerId - Player identifier
-   * @returns {Object} Leave result
-   */
-  leaveGame(gameId, playerId) {
-    try {
-      const game = this.games.get(gameId);
       if (!game) {
-        return { error: ERROR_MESSAGES.GAME_NOT_FOUND };
+        throw new Error('Game not found');
       }
 
-      const playerIndex = game.players.findIndex(p => p.id === playerId);
-      if (playerIndex === -1) {
-        return { error: ERROR_MESSAGES.PLAYER_NOT_IN_GAME };
+      if (game.status !== 'waiting') {
+        throw new Error('Game is not available for joining');
       }
 
-      // Remove player from game
-      game.players.splice(playerIndex, 1);
-      
-      // Update game status
-      if (game.status === GAME_STATUS.ACTIVE) {
-        game.status = GAME_STATUS.ABANDONED;
+      if (game.players.length >= 2) {
+        throw new Error('Game is full');
       }
-      
-      game.lastActivity = new Date();
-      
-      logger.info('Player left game', { gameId, playerId });
-      
-      // If no players left, delete the game
-      if (game.players.length === 0) {
-        this.games.delete(gameId);
+
+      if (game.is_private && game.password !== password) {
+        throw new Error('Incorrect password for private game');
       }
+
+      // Check if user is already in the game
+      const existingPlayer = game.players.find(p => p.user_id === userId);
+      if (existingPlayer) {
+        throw new Error('You are already in this game');
+      }
+
+      const user = await db.User.findByPk(userId, { transaction });
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Determine color (opposite of existing player)
+      const existingColor = game.players[0].color;
+      const newColor = existingColor === 'white' ? 'black' : 'white';
       
-      return { success: true };
+      const ratingField = `rating_${game.game_type}`;
+      const currentRating = user[ratingField] || user.rating_rapid;
+
+      // Create player
+      await db.Player.create({
+        game_id: gameId,
+        user_id: userId,
+        color: newColor,
+        rating_before: currentRating
+      }, { transaction });
+
+      // Start the game
+      await db.Game.update({
+        status: 'active',
+        started_at: new Date()
+      }, {
+        where: { id: gameId },
+        transaction
+      });
+
+      await transaction.commit();
+      
+      logger.info('Player joined game', { gameId, userId, color: newColor });
+      
+      return await this.getGameById(gameId);
     } catch (error) {
-      logger.error('Error leaving game', { error: error.message, gameId, playerId });
+      await transaction.rollback();
+      logger.error('Failed to join game', { error: error.message, gameId, userId });
       throw error;
     }
   }
 
   /**
    * Make a move in a game
-   * @param {string} gameId - Game identifier
-   * @param {string} playerId - Player identifier
-   * @param {string|Object} move - Move to make
-   * @returns {Object} Move result
    */
-  makeMove(gameId, playerId, move) {
+  async makeMove(gameId, userId, moveData) {
+    const transaction = await db.sequelize.transaction();
+    
     try {
-      const game = this.games.get(gameId);
+      const game = await db.Game.findByPk(gameId, {
+        include: [{
+          model: db.Player,
+          as: 'players',
+          include: [{ 
+            model: db.User, 
+            as: 'user',
+            attributes: ['id', 'username', 'display_name']
+          }]
+        }],
+        transaction
+      });
+
       if (!game) {
-        return { error: ERROR_MESSAGES.GAME_NOT_FOUND };
+        throw new Error('Game not found');
       }
 
-      if (game.status !== GAME_STATUS.ACTIVE) {
-        return { error: ERROR_MESSAGES.INVALID_GAME_STATE };
+      if (game.status !== 'active') {
+        throw new Error('Game is not active');
       }
 
-      if (game.chess.isGameOver()) {
-        return { error: ERROR_MESSAGES.GAME_ALREADY_OVER };
-      }
-
-      // Validate player is in game and it's their turn
-      const player = game.players.find(p => p.id === playerId);
+      const player = game.players.find(p => p.user_id === userId);
       if (!player) {
-        return { error: ERROR_MESSAGES.PLAYER_NOT_IN_GAME };
+        throw new Error('You are not a player in this game');
       }
 
-      const currentTurn = game.chess.turn();
-      const playerColor = player.color;
-      const playerTurn = playerColor === COLORS.WHITE ? 'w' : 'b';
-
-      if (currentTurn !== playerTurn) {
-        return { error: ERROR_MESSAGES.NOT_YOUR_TURN };
+      // Validate turn
+      const chess = new Chess(game.current_fen);
+      const currentTurn = chess.turn() === 'w' ? 'white' : 'black';
+      
+      if (player.color !== currentTurn) {
+        throw new Error('It is not your turn');
       }
 
       // Make the move
-      let moveResult;
+      let move;
       try {
-        moveResult = game.chess.move(move);
-        if (!moveResult) {
-          return { error: ERROR_MESSAGES.INVALID_MOVE };
+        move = chess.move(moveData.move);
+        if (!move) {
+          throw new Error('Invalid move');
         }
-      } catch (error) {
-        return { error: ERROR_MESSAGES.INVALID_MOVE };
+      } catch (err) {
+        throw new Error('Invalid move: ' + err.message);
       }
+
+      // Calculate move number
+      const moveNumber = Math.ceil((game.move_count + 1) / 2);
+
+      // Record move in database
+      const dbMove = await db.Move.create({
+        game_id: gameId,
+        player_id: player.id,
+        move_number: moveNumber,
+        color: player.color,
+        san: move.san,
+        uci: `${move.from}${move.to}${move.promotion || ''}`,
+        from_square: move.from,
+        to_square: move.to,
+        piece: move.piece,
+        captured_piece: move.captured || null,
+        promotion_piece: move.promotion || null,
+        is_check: chess.isCheck(),
+        is_checkmate: chess.isCheckmate(),
+        is_castling: move.flags.includes('k') || move.flags.includes('q'),
+        is_en_passant: move.flags.includes('e'),
+        fen_after: chess.fen(),
+        time_spent_ms: moveData.time_spent_ms || null
+      }, { transaction });
 
       // Update game state
-      game.fen = game.chess.fen();
-      game.lastActivity = new Date();
-      
-      // Add move to history
-      const moveData = {
-        ...moveResult,
-        playerId,
-        playerName: player.name,
-        timestamp: getCurrentTimestamp()
+      const updateData = {
+        current_fen: chess.fen(),
+        current_turn: chess.turn() === 'w' ? 'white' : 'black',
+        move_count: game.move_count + 1,
+        last_move_at: new Date()
       };
-      game.moves.push(moveData);
+
+      // Handle time updates if provided
+      if (moveData.time_spent_ms !== undefined) {
+        const timeRemaining = player.color === 'white' ? 
+          game.white_time_remaining : game.black_time_remaining;
+        
+        const newTimeRemaining = Math.max(0, 
+          timeRemaining - moveData.time_spent_ms + (game.increment_seconds * 1000)
+        );
+
+        if (player.color === 'white') {
+          updateData.white_time_remaining = newTimeRemaining;
+        } else {
+          updateData.black_time_remaining = newTimeRemaining;
+        }
+
+        // Update move with remaining time
+        await db.Move.update(
+          { time_remaining_ms: newTimeRemaining },
+          { where: { id: dbMove.id }, transaction }
+        );
+      }
 
       // Check for game end
-      if (game.chess.isGameOver()) {
-        game.status = this.getGameEndStatus(game.chess);
-        if (game.chess.isCheckmate()) {
-          game.winner = game.chess.turn() === 'w' ? COLORS.BLACK : COLORS.WHITE;
+      if (chess.isGameOver()) {
+        updateData.status = 'finished';
+        updateData.finished_at = new Date();
+        
+        if (chess.isCheckmate()) {
+          updateData.result = chess.turn() === 'w' ? 'black_wins' : 'white_wins';
+          updateData.result_reason = 'checkmate';
+          
+          // Mark winner
+          const winnerId = chess.turn() === 'w' ? 
+            game.players.find(p => p.color === 'black').id :
+            game.players.find(p => p.color === 'white').id;
+          
+          await db.Player.update({ is_winner: true }, {
+            where: { id: winnerId },
+            transaction
+          });
+          await db.Player.update({ is_winner: false }, {
+            where: { id: { [db.Sequelize.Op.ne]: winnerId }, game_id: gameId },
+            transaction
+          });
+          
+        } else if (chess.isStalemate()) {
+          updateData.result = 'draw';
+          updateData.result_reason = 'stalemate';
+        } else if (chess.isDraw()) {
+          updateData.result = 'draw';
+          if (chess.isInsufficientMaterial()) {
+            updateData.result_reason = 'insufficient_material';
+          } else if (chess.isThreefoldRepetition()) {
+            updateData.result_reason = 'threefold_repetition';
+          } else {
+            updateData.result_reason = 'fifty_move_rule';
+          }
+        }
+
+        // Update player statistics and ratings if game is rated
+        if (game.is_rated && updateData.result) {
+          await this.updatePlayerStatsAndRatings(game, updateData.result, transaction);
         }
       }
 
+      await db.Game.update(updateData, {
+        where: { id: gameId },
+        transaction
+      });
+
+      await transaction.commit();
+      
       logger.info('Move made', { 
         gameId, 
-        playerId, 
-        move: moveResult.san,
-        gameStatus: game.status 
+        userId, 
+        move: move.san,
+        gameStatus: updateData.status || 'active'
       });
 
       return {
-        move: moveData,
-        gameState: this.formatGameResponse(game)
+        move: {
+          id: dbMove.id,
+          san: move.san,
+          uci: dbMove.uci,
+          from: move.from,
+          to: move.to,
+          piece: move.piece,
+          captured: move.captured,
+          promotion: move.promotion,
+          check: chess.isCheck(),
+          checkmate: chess.isCheckmate(),
+          fen: chess.fen()
+        },
+        game: await this.getGameById(gameId)
       };
     } catch (error) {
-      logger.error('Error making move', { 
-        error: error.message, 
-        gameId, 
-        playerId, 
-        move 
-      });
+      await transaction.rollback();
+      logger.error('Failed to make move', { error: error.message, gameId, userId });
       throw error;
     }
   }
 
   /**
-   * Add chat message to game
-   * @param {string} gameId - Game identifier
-   * @param {string} playerId - Player identifier
-   * @param {string} message - Chat message
-   * @returns {Object} Message result
+   * Resign from a game
    */
-  addChatMessage(gameId, playerId, message) {
+  async resignGame(gameId, userId) {
+    const transaction = await db.sequelize.transaction();
+    
     try {
-      const game = this.games.get(gameId);
-      if (!game) {
-        return { error: ERROR_MESSAGES.GAME_NOT_FOUND };
-      }
-
-      const player = game.players.find(p => p.id === playerId);
-      if (!player) {
-        return { error: ERROR_MESSAGES.PLAYER_NOT_IN_GAME };
-      }
-
-      const chatMessage = {
-        id: generateGameId(),
-        playerId,
-        playerName: player.name,
-        message,
-        timestamp: getCurrentTimestamp()
-      };
-
-      game.chatMessages.push(chatMessage);
-      game.lastActivity = new Date();
-
-      // Keep only last 100 messages
-      if (game.chatMessages.length > 100) {
-        game.chatMessages = game.chatMessages.slice(-100);
-      }
-
-      logger.debug('Chat message added', { gameId, playerId, message });
-
-      return { message: chatMessage };
-    } catch (error) {
-      logger.error('Error adding chat message', { 
-        error: error.message, 
-        gameId, 
-        playerId 
+      const game = await db.Game.findByPk(gameId, {
+        include: [{
+          model: db.Player,
+          as: 'players',
+          include: [{ 
+            model: db.User, 
+            as: 'user',
+            attributes: ['id', 'username', 'display_name']
+          }]
+        }],
+        transaction
       });
+
+      if (!game) {
+        throw new Error('Game not found');
+      }
+
+      if (game.status !== 'active') {
+        throw new Error('Game is not active');
+      }
+
+      const player = game.players.find(p => p.user_id === userId);
+      if (!player) {
+        throw new Error('You are not a player in this game');
+      }
+
+      // Determine winner (opponent)
+      const opponent = game.players.find(p => p.user_id !== userId);
+      const result = player.color === 'white' ? 'black_wins' : 'white_wins';
+
+      // Update game
+      await db.Game.update({
+        status: 'finished',
+        result: result,
+        result_reason: 'resignation',
+        finished_at: new Date()
+      }, {
+        where: { id: gameId },
+        transaction
+      });
+
+      // Update player records
+      await db.Player.update({ is_winner: true }, {
+        where: { id: opponent.id },
+        transaction
+      });
+      await db.Player.update({ is_winner: false }, {
+        where: { id: player.id },
+        transaction
+      });
+
+      // Update player statistics and ratings if game is rated
+      if (game.is_rated) {
+        await this.updatePlayerStatsAndRatings(game, result, transaction);
+      }
+
+      await transaction.commit();
+      
+      logger.info('Player resigned from game', { gameId, userId });
+      
+      return await this.getGameById(gameId);
+    } catch (error) {
+      await transaction.rollback();
+      logger.error('Failed to resign game', { error: error.message, gameId, userId });
       throw error;
     }
   }
 
   /**
-   * Get game by ID
-   * @param {string} gameId - Game identifier
-   * @returns {Object|null} Game data or null
+   * Offer a draw
    */
-  getGame(gameId) {
-    const game = this.games.get(gameId);
-    return game ? this.formatGameResponse(game) : null;
-  }
+  async offerDraw(gameId, userId) {
+    try {
+      const game = await db.Game.findByPk(gameId, {
+        include: [{
+          model: db.Player,
+          as: 'players'
+        }]
+      });
 
-  /**
-   * Get active games list
-   * @param {number} page - Page number
-   * @param {number} limit - Items per page
-   * @returns {Object} Games list with pagination
-   */
-  getActiveGames(page = 1, limit = 10) {
-    const games = Array.from(this.games.values())
-      .filter(game => game.status === GAME_STATUS.ACTIVE || game.status === GAME_STATUS.WAITING)
-      .sort((a, b) => b.lastActivity - a.lastActivity);
-
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedGames = games.slice(startIndex, endIndex);
-
-    return {
-      games: paginatedGames.map(game => this.formatGameResponse(game, false)),
-      pagination: {
-        page,
-        limit,
-        total: games.length,
-        pages: Math.ceil(games.length / limit)
+      if (!game) {
+        throw new Error('Game not found');
       }
-    };
-  }
 
-  /**
-   * Get game statistics
-   * @returns {Object} Game statistics
-   */
-  getGameStats() {
-    const totalGames = this.games.size;
-    const activeGames = Array.from(this.games.values())
-      .filter(game => game.status === GAME_STATUS.ACTIVE).length;
-    const waitingGames = Array.from(this.games.values())
-      .filter(game => game.status === GAME_STATUS.WAITING).length;
-
-    return {
-      totalGames,
-      activeGames,
-      waitingGames,
-      waitingPlayers: this.waitingPlayers.length,
-      maxGames: this.maxGames
-    };
-  }
-
-  /**
-   * Join matchmaking queue
-   * @param {Object} player - Player data
-   * @returns {Object} Queue result
-   */
-  joinMatchmakingQueue(player) {
-    // Remove player if already in queue
-    this.waitingPlayers = this.waitingPlayers.filter(p => p.id !== player.id);
-    
-    // Add to queue
-    this.waitingPlayers.push(player);
-    
-    logger.info('Player joined matchmaking queue', { 
-      playerId: player.id, 
-      queueLength: this.waitingPlayers.length 
-    });
-
-    // Try to match players
-    if (this.waitingPlayers.length >= 2) {
-      const player1 = this.waitingPlayers.shift();
-      const player2 = this.waitingPlayers.shift();
-      
-      return this.createMatchedGame(player1, player2);
-    }
-
-    return {
-      queuePosition: this.waitingPlayers.length,
-      estimatedWaitTime: this.estimateWaitTime()
-    };
-  }
-
-  /**
-   * Create a matched game from queue
-   * @param {Object} player1 - First player
-   * @param {Object} player2 - Second player
-   * @returns {Object} Created game
-   */
-  createMatchedGame(player1, player2) {
-    const game = this.createGame();
-    
-    // Randomly assign colors
-    const player1IsWhite = Math.random() > 0.5;
-    
-    player1.color = player1IsWhite ? COLORS.WHITE : COLORS.BLACK;
-    player2.color = player1IsWhite ? COLORS.BLACK : COLORS.WHITE;
-    
-    game.players = [player1, player2];
-    game.white = player1IsWhite ? player1.id : player2.id;
-    game.black = player1IsWhite ? player2.id : player1.id;
-    game.status = GAME_STATUS.ACTIVE;
-    
-    const gameData = this.games.get(game.id);
-    gameData.players = [player1, player2];
-    gameData.white = game.white;
-    gameData.black = game.black;
-    gameData.status = GAME_STATUS.ACTIVE;
-
-    logger.info('Created matched game', { 
-      gameId: game.id, 
-      player1: player1.id, 
-      player2: player2.id 
-    });
-
-    return this.formatGameResponse(gameData);
-  }
-
-  /**
-   * Add player to existing game
-   * @param {Object} game - Game instance
-   * @param {Object} player - Player data
-   * @returns {Object} Join result
-   */
-  addPlayerToGame(game, player) {
-    if (game.players.length >= 2) {
-      return { error: 'Game is full' };
-    }
-
-    // Assign color
-    if (game.players.length === 0) {
-      player.color = Math.random() > 0.5 ? COLORS.WHITE : COLORS.BLACK;
-      game.white = player.color === COLORS.WHITE ? player.id : null;
-      game.black = player.color === COLORS.BLACK ? player.id : null;
-    } else {
-      const existingPlayer = game.players[0];
-      player.color = existingPlayer.color === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
-      
-      if (player.color === COLORS.WHITE) {
-        game.white = player.id;
-      } else {
-        game.black = player.id;
+      if (game.status !== 'active') {
+        throw new Error('Game is not active');
       }
-    }
 
-    game.players.push(player);
+      const player = game.players.find(p => p.user_id === userId);
+      if (!player) {
+        throw new Error('You are not a player in this game');
+      }
+
+      // TODO: Implement draw offer logic (store in database or memory)
+      logger.info('Draw offered', { gameId, userId });
+      
+      return { message: 'Draw offer sent' };
+    } catch (error) {
+      logger.error('Failed to offer draw', { error: error.message, gameId, userId });
+      throw error;
+    }
+  }
+
+  /**
+   * Respond to a draw offer
+   */
+  async respondToDraw(gameId, userId, action) {
+    const transaction = await db.sequelize.transaction();
     
-    // Start game if both players present
-    if (game.players.length === 2) {
-      game.status = GAME_STATUS.ACTIVE;
-    }
-    
-    game.lastActivity = new Date();
+    try {
+      const game = await db.Game.findByPk(gameId, {
+        include: [{
+          model: db.Player,
+          as: 'players'
+        }],
+        transaction
+      });
 
-    logger.info('Player joined game', { 
-      gameId: game.id, 
-      playerId: player.id, 
-      playerCount: game.players.length 
-    });
+      if (!game) {
+        throw new Error('Game not found');
+      }
 
-    return this.formatGameResponse(game);
-  }
+      if (game.status !== 'active') {
+        throw new Error('Game is not active');
+      }
 
-  /**
-   * Create player object
-   * @param {Object} playerData - Raw player data
-   * @returns {Object} Formatted player object
-   */
-  createPlayer(playerData = {}) {
-    return {
-      id: playerData.id || generatePlayerId(),
-      name: sanitizePlayerName(playerData.name) || `Player ${Date.now()}`,
-      rating: playerData.rating || DEFAULT_RATING,
-      color: null,
-      joinedAt: new Date()
-    };
-  }
+      const player = game.players.find(p => p.user_id === userId);
+      if (!player) {
+        throw new Error('You are not a player in this game');
+      }
 
-  /**
-   * Get game end status
-   * @param {Chess} chess - Chess instance
-   * @returns {string} Game status
-   */
-  getGameEndStatus(chess) {
-    if (chess.isCheckmate()) {
-      return GAME_STATUS.CHECKMATE;
-    }
-    if (chess.isStalemate()) {
-      return GAME_STATUS.STALEMATE;
-    }
-    if (chess.isDraw()) {
-      return GAME_STATUS.DRAW;
-    }
-    return GAME_STATUS.FINISHED;
-  }
+      if (action === 'accept') {
+        // Accept draw
+        await db.Game.update({
+          status: 'finished',
+          result: 'draw',
+          result_reason: 'mutual_agreement',
+          finished_at: new Date()
+        }, {
+          where: { id: gameId },
+          transaction
+        });
 
-  /**
-   * Format game response
-   * @param {Object} game - Game instance
-   * @param {boolean} includeDetails - Include detailed information
-   * @returns {Object} Formatted game data
-   */
-  formatGameResponse(game, includeDetails = true) {
-    const baseData = {
-      id: game.id,
-      status: game.status,
-      players: game.players.length,
-      createdAt: game.createdAt,
-      lastActivity: game.lastActivity
-    };
+        // Mark both players as having no winner (draw)
+        await db.Player.update({ is_winner: null }, {
+          where: { game_id: gameId },
+          transaction
+        });
 
-    if (!includeDetails) {
-      return baseData;
-    }
-
-    return {
-      ...baseData,
-      playersList: game.players,
-      white: game.white,
-      black: game.black,
-      fen: game.fen,
-      turn: game.chess.turn(),
-      moves: game.moves,
-      isCheck: game.chess.isCheck(),
-      isCheckmate: game.chess.isCheckmate(),
-      isStalemate: game.chess.isStalemate(),
-      isDraw: game.chess.isDraw(),
-      isGameOver: game.chess.isGameOver(),
-      chatMessages: game.chatMessages,
-      winner: game.winner || null
-    };
-  }
-
-  /**
-   * Estimate wait time in queue
-   * @returns {number} Estimated wait time in seconds
-   */
-  estimateWaitTime() {
-    // Simple estimation based on queue length
-    const queueLength = this.waitingPlayers.length;
-    return Math.max(30, queueLength * 15); // 30 seconds minimum, +15 seconds per player
-  }
-
-  /**
-   * Start cleanup interval
-   */
-    startCleanupInterval() {
-        if (process.env.NODE_ENV !== 'test') {
-            setInterval(() => {
-                this.cleanupOldGames();
-            }, this.gameTimeout / 2); // Run cleanup every half timeout period
+        // Update player statistics if game is rated
+        if (game.is_rated) {
+          await this.updatePlayerStatsAndRatings(game, 'draw', transaction);
         }
+
+        await transaction.commit();
+        
+        logger.info('Draw accepted', { gameId, userId });
+        return await this.getGameById(gameId);
+      } else {
+        // Decline draw
+        await transaction.commit();
+        
+        logger.info('Draw declined', { gameId, userId });
+        return { message: 'Draw offer declined' };
+      }
+    } catch (error) {
+      await transaction.rollback();
+      logger.error('Failed to respond to draw', { error: error.message, gameId, userId });
+      throw error;
     }
+  }
 
   /**
-   * Cleanup old games
+   * Get game by ID with full details
    */
-  cleanupOldGames() {
-    const now = Date.now();
-    
-    for (const [gameId, game] of this.games) {
-      const timeSinceActivity = now - game.lastActivity.getTime();
-      
-      if (timeSinceActivity > this.gameTimeout) {
-        this.games.delete(gameId);
-        logger.info('Cleaned up old game', { gameId, timeSinceActivity });
-      }
-    }
+  async getGameById(gameId) {
+    try {
+      const game = await db.Game.findByPk(gameId, {
+        include: [
+          {
+            model: db.Player,
+            as: 'players',
+            include: [{
+              model: db.User,
+              as: 'user',
+              attributes: ['id', 'username', 'display_name', 'rating_rapid', 'rating_blitz', 'rating_bullet']
+            }]
+          },
+          {
+            model: db.Move,
+            as: 'moves',
+            order: [['created_at', 'ASC']],
+            limit: 200 // Limit moves for performance
+          },
+          {
+            model: db.Opening,
+            as: 'opening',
+            attributes: ['id', 'eco_code', 'name', 'variation']
+          }
+        ]
+      });
 
-    // Clean up old waiting players
-    this.waitingPlayers = this.waitingPlayers.filter(player => {
-      const timeSinceJoin = now - player.joinedAt.getTime();
-      return timeSinceJoin < this.gameTimeout;
-    });
+      if (!game) {
+        return null;
+      }
+
+      // Add chess position analysis
+      const chess = new Chess(game.current_fen);
+      
+      return {
+        ...game.toJSON(),
+        analysis: {
+          isCheck: chess.isCheck(),
+          isCheckmate: chess.isCheckmate(),
+          isStalemate: chess.isStalemate(),
+          isDraw: chess.isDraw(),
+          isGameOver: chess.isGameOver(),
+          turn: chess.turn(),
+          legalMoves: chess.moves(),
+          inCheck: chess.inCheck()
+        }
+      };
+    } catch (error) {
+      logger.error('Failed to get game by ID', { error: error.message, gameId });
+      throw error;
+    }
+  }
+
+  /**
+   * Get active games with filters
+   */
+  async getGames(filters = {}, page = 1, limit = 10) {
+    try {
+      const offset = (page - 1) * limit;
+      const whereClause = {};
+
+      // Apply filters
+      if (filters.status) {
+        whereClause.status = filters.status;
+      } else {
+        whereClause.status = ['waiting', 'active']; // Default to active games
+      }
+
+      if (filters.game_type) {
+        whereClause.game_type = filters.game_type;
+      }
+
+      if (filters.is_rated !== undefined) {
+        whereClause.is_rated = filters.is_rated;
+      }
+
+      if (!filters.include_private) {
+        whereClause.is_private = false;
+      }
+
+      const { count, rows } = await db.Game.findAndCountAll({
+        where: whereClause,
+        include: [{
+          model: db.Player,
+          as: 'players',
+          include: [{
+            model: db.User,
+            as: 'user',
+            attributes: ['id', 'username', 'display_name', 'rating_rapid', 'rating_blitz', 'rating_bullet']
+          }]
+        }],
+        order: [['created_at', 'DESC']],
+        limit,
+        offset,
+        attributes: [
+          'id', 'game_type', 'time_control', 'status', 'is_rated', 'is_private',
+          'created_at', 'started_at', 'move_count'
+        ]
+      });
+
+      return {
+        games: rows,
+        pagination: {
+          page,
+          limit,
+          total: count,
+          pages: Math.ceil(count / limit),
+          hasNext: offset + limit < count,
+          hasPrev: page > 1
+        }
+      };
+    } catch (error) {
+      logger.error('Failed to get games', { error: error.message, filters });
+      throw error;
+    }
+  }
+
+  /**
+   * Get move history for a game
+   */
+  async getMoveHistory(gameId) {
+    try {
+      const moves = await db.Move.findAll({
+        where: { game_id: gameId },
+        order: [['created_at', 'ASC']],
+        include: [{
+          model: db.Player,
+          as: 'player',
+          include: [{
+            model: db.User,
+            as: 'user',
+            attributes: ['id', 'username', 'display_name']
+          }]
+        }]
+      });
+
+      return moves;
+    } catch (error) {
+      logger.error('Failed to get move history', { error: error.message, gameId });
+      throw error;
+    }
+  }
+
+  /**
+   * Get game's detected opening
+   */
+  async getGameOpening(gameId) {
+    try {
+      const game = await db.Game.findByPk(gameId, {
+        include: [{
+          model: db.Opening,
+          as: 'opening'
+        }]
+      });
+
+      if (!game) {
+        throw new Error('Game not found');
+      }
+
+      // If no opening detected yet, try to detect it
+      if (!game.opening && game.move_count >= 6) {
+        const opening = await this.detectGameOpening(gameId);
+        if (opening) {
+          return opening;
+        }
+      }
+
+      return game.opening;
+    } catch (error) {
+      logger.error('Failed to get game opening', { error: error.message, gameId });
+      throw error;
+    }
+  }
+
+  /**
+   * Detect game opening from moves
+   */
+  async detectGameOpening(gameId) {
+    try {
+      const moves = await db.Move.findAll({
+        where: { game_id: gameId },
+        order: [['move_number', 'ASC'], ['color', 'ASC']],
+        limit: 20 // First 10 moves for each side
+      });
+
+      if (moves.length < 6) {
+        return null;
+      }
+
+      // Build move string
+      const moveString = moves.map(move => move.san).join(' ');
+
+      // Find matching opening
+      const opening = await db.Opening.findOne({
+        where: {
+          moves: {
+            [db.Sequelize.Op.like]: `${moveString.substring(0, 20)}%`
+          }
+        },
+        order: [['move_count', 'DESC']] // Get most specific match
+      });
+
+      if (opening) {
+        // Update game with detected opening
+        await db.Game.update({
+          opening_id: opening.id
+        }, {
+          where: { id: gameId }
+        });
+
+        // Update opening popularity
+        await db.Opening.update({
+          popularity: db.Sequelize.literal('popularity + 1')
+        }, {
+          where: { id: opening.id }
+        });
+
+        logger.info('Opening detected for game', { gameId, openingId: opening.id });
+      }
+
+      return opening;
+    } catch (error) {
+      logger.error('Failed to detect opening', { error: error.message, gameId });
+      return null;
+    }
+  }
+
+  /**
+   * Update player statistics and ratings after game ends
+   */
+  async updatePlayerStatsAndRatings(game, result, transaction) {
+    try {
+      for (const player of game.players) {
+        const user = await db.User.findByPk(player.user_id, { transaction });
+        if (!user) continue;
+
+        // Determine result for this player
+        let playerResult;
+        if (result === 'draw') {
+          playerResult = 'draw';
+        } else if (
+          (result === 'white_wins' && player.color === 'white') ||
+          (result === 'black_wins' && player.color === 'black')
+        ) {
+          playerResult = 'win';
+        } else {
+          playerResult = 'loss';
+        }
+
+        // Update game statistics
+        const statUpdates = {
+          games_played: user.games_played + 1
+        };
+
+        if (playerResult === 'win') {
+          statUpdates.games_won = user.games_won + 1;
+        } else if (playerResult === 'loss') {
+          statUpdates.games_lost = user.games_lost + 1;
+        } else {
+          statUpdates.games_drawn = user.games_drawn + 1;
+        }
+
+        await db.User.update(statUpdates, {
+          where: { id: player.user_id },
+          transaction
+        });
+
+        // Calculate rating change (simplified ELO system)
+        const opponent = game.players.find(p => p.id !== player.id);
+        if (opponent) {
+          const ratingChange = this.calculateRatingChange(
+            player.rating_before,
+            opponent.rating_before,
+            playerResult
+          );
+
+          const newRating = Math.max(400, player.rating_before + ratingChange);
+          const ratingField = `rating_${game.game_type}`;
+
+          // Update user rating
+          await db.User.update({
+            [ratingField]: newRating
+          }, {
+            where: { id: player.user_id },
+            transaction
+          });
+
+          // Update player record
+          await db.Player.update({
+            rating_after: newRating,
+            rating_change: ratingChange
+          }, {
+            where: { id: player.id },
+            transaction
+          });
+
+          // Record rating history
+          await db.Rating.create({
+            user_id: player.user_id,
+            game_id: game.id,
+            rating_type: game.game_type,
+            rating_before: player.rating_before,
+            rating_after: newRating,
+            rating_change: ratingChange,
+            opponent_rating: opponent.rating_before,
+            expected_score: this.calculateExpectedScore(player.rating_before, opponent.rating_before),
+            actual_score: playerResult === 'win' ? 1.0 : (playerResult === 'draw' ? 0.5 : 0.0),
+            k_factor: this.getKFactor(user.games_played)
+          }, { transaction });
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to update player stats and ratings', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate rating change using ELO system
+   */
+  calculateRatingChange(playerRating, opponentRating, result) {
+    const kFactor = 32; // Can be adjusted based on player experience
+    const expectedScore = this.calculateExpectedScore(playerRating, opponentRating);
+    
+    let actualScore;
+    if (result === 'win') actualScore = 1.0;
+    else if (result === 'draw') actualScore = 0.5;
+    else actualScore = 0.0;
+
+    return Math.round(kFactor * (actualScore - expectedScore));
+  }
+
+  /**
+   * Calculate expected score in ELO system
+   */
+  calculateExpectedScore(playerRating, opponentRating) {
+    return 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 400));
+  }
+
+  /**
+   * Get K-factor based on player experience
+   */
+  getKFactor(gamesPlayed) {
+    if (gamesPlayed < 30) return 40;
+    if (gamesPlayed < 100) return 32;
+    return 24;
   }
 }
 
-// Create singleton instance
-const gameService = new GameService();
-
-module.exports = gameService;
+module.exports = new GameService();

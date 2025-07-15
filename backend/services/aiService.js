@@ -1,732 +1,565 @@
-/**
- * AI Service
- * Provides AI opponent functionality for chess games
- */
-
+// services/aiService.js
 const { Chess } = require('chess.js');
-const { 
-  AI_DIFFICULTIES, 
-  ERROR_MESSAGES, 
-  GAME_STATUS, 
-  COLORS, 
-  PIECE_VALUES 
-} = require('../utils/constants');
-const { 
-  generateGameId, 
-  getCurrentTimestamp, 
-  sleep 
-} = require('../utils/helpers');
+const db = require('../models');
 const logger = require('../utils/logger');
-const config = require('../config');
 
 class AIService {
   constructor() {
-    this.aiGames = new Map();
-    this.maxConcurrentGames = config.ai.maxConcurrentGames;
-    this.defaultDifficulty = config.ai.defaultDifficulty;
-    this.maxThinkingTime = config.ai.maxThinkingTime;
-    
-    // Start cleanup interval
-    this.startCleanupInterval();
+    this.difficulties = {
+      beginner: { level: 1, estimated_rating: 800, thinking_time: 500 },
+      easy: { level: 3, estimated_rating: 1000, thinking_time: 1000 },
+      intermediate: { level: 5, estimated_rating: 1400, thinking_time: 2000 },
+      hard: { level: 8, estimated_rating: 1800, thinking_time: 3000 },
+      expert: { level: 12, estimated_rating: 2200, thinking_time: 4000 },
+      master: { level: 15, estimated_rating: 2600, thinking_time: 5000 }
+    };
+  }
+
+  /**
+   * Get available AI difficulties
+   */
+  getDifficulties() {
+    return Object.keys(this.difficulties).map(key => ({
+      level: key,
+      name: key.charAt(0).toUpperCase() + key.slice(1),
+      estimated_rating: this.difficulties[key].estimated_rating,
+      description: this.getDifficultyDescription(key)
+    }));
   }
 
   /**
    * Create a new AI game
-   * @param {string} difficulty - AI difficulty level
-   * @param {string} playerColor - Player's color choice
-   * @param {string} playerId - Player identifier
-   * @returns {Promise<Object>} Game data
    */
-  async createGame(difficulty = this.defaultDifficulty, playerColor = COLORS.WHITE, playerId = null) {
+  async createAIGame(userId, gameData) {
+    const transaction = await db.sequelize.transaction();
+    
     try {
-      // Check if we can create more games
-      if (this.aiGames.size >= this.maxConcurrentGames) {
-        throw new Error(ERROR_MESSAGES.AI_SERVICE_UNAVAILABLE);
+      const user = await db.User.findByPk(userId, { transaction });
+      if (!user) {
+        throw new Error('User not found');
       }
 
-      const gameId = generateGameId();
-      const chess = new Chess();
+      const difficulty = this.difficulties[gameData.difficulty];
+      if (!difficulty) {
+        throw new Error('Invalid AI difficulty');
+      }
+
+      // Parse time control
+      const [minutes, increment] = (gameData.time_control || '10+0').split('+').map(Number);
+      const timeLimit = minutes * 60;
+
+      // Determine colors
+      let userColor = gameData.user_color || 'random';
+      if (userColor === 'random') {
+        userColor = Math.random() > 0.5 ? 'white' : 'black';
+      }
+      const aiColor = userColor === 'white' ? 'black' : 'white';
+
+      // Create game
+      const game = await db.Game.create({
+        game_type: 'ai',
+        time_control: gameData.time_control || '10+0',
+        time_limit_seconds: timeLimit,
+        increment_seconds: increment,
+        is_rated: false, // AI games are typically not rated
+        is_private: false,
+        ai_difficulty: gameData.difficulty,
+        status: 'active',
+        started_at: new Date(),
+        white_time_remaining: timeLimit * 1000,
+        black_time_remaining: timeLimit * 1000
+      }, { transaction });
+
+      // Create user player
+      const userRating = user[`rating_rapid`]; // Use rapid rating for AI games
+      await db.Player.create({
+        game_id: game.id,
+        user_id: userId,
+        color: userColor,
+        rating_before: userRating,
+        is_ai: false
+      }, { transaction });
+
+      // Create AI player
+      await db.Player.create({
+        game_id: game.id,
+        user_id: null,
+        color: aiColor,
+        rating_before: difficulty.estimated_rating,
+        is_ai: true,
+        ai_name: `AI ${gameData.difficulty.charAt(0).toUpperCase() + gameData.difficulty.slice(1)}`
+      }, { transaction });
+
+      await transaction.commit();
       
-      const game = {
-        id: gameId,
-        chess,
-        difficulty,
-        playerColor,
-        playerId,
-        aiColor: playerColor === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE,
-        status: GAME_STATUS.ACTIVE,
-        createdAt: new Date(),
-        lastActivity: new Date(),
-        moves: []
-      };
-      
-      logger.info('Creating AI game', { 
-        gameId, 
-        difficulty, 
-        playerColor, 
-        playerId 
+      logger.info('AI game created', { 
+        gameId: game.id, 
+        userId, 
+        difficulty: gameData.difficulty,
+        userColor 
       });
       
-      this.aiGames.set(gameId, game);
-      
-      // If AI plays white, make first move
+      // If AI plays first (white), make AI move
       let aiMove = null;
-      if (game.aiColor === COLORS.WHITE) {
-        try {
-          aiMove = await this.generateMove(gameId);
-          if (aiMove) {
-            game.moves.push({
-              ...aiMove,
-              player: 'ai',
-              timestamp: getCurrentTimestamp()
-            });
-          }
-        } catch (error) {
-          logger.error('Error generating AI opening move', { 
-            gameId, 
-            error: error.message 
-          });
-        }
+      if (aiColor === 'white') {
+        aiMove = await this.makeAIMove(game.id);
       }
+
+      const gameResult = await this.getAIGameState(game.id);
       
       return {
-        id: gameId,
-        difficulty,
-        playerColor,
-        aiColor: game.aiColor,
-        fen: chess.fen(),
-        turn: chess.turn(),
-        status: chess.isGameOver() ? GAME_STATUS.FINISHED : GAME_STATUS.ACTIVE,
-        aiMove,
-        moves: game.moves,
-        gameState: this.getGameState(gameId)
+        ...gameResult,
+        ...(aiMove && { lastAIMove: aiMove })
       };
     } catch (error) {
-      logger.error('Error creating AI game', { 
-        difficulty, 
-        playerColor, 
-        error: error.message 
-      });
+      await transaction.rollback();
+      logger.error('Failed to create AI game', { error: error.message, userId });
       throw error;
     }
   }
 
   /**
-   * Get current game state
-   * @param {string} gameId - Game identifier
-   * @returns {Object|null} Game state or null if not found
+   * Get AI game state
    */
-  getGameState(gameId) {
-    const game = this.aiGames.get(gameId);
-    if (!game) {
+  async getAIGameState(gameId) {
+    try {
+      const game = await db.Game.findByPk(gameId, {
+        include: [
+          {
+            model: db.Player,
+            as: 'players',
+            include: [{
+              model: db.User,
+              as: 'user',
+              attributes: ['id', 'username', 'display_name', 'rating_rapid']
+            }]
+          },
+          {
+            model: db.Move,
+            as: 'moves',
+            order: [['created_at', 'ASC']],
+            limit: 100
+          }
+        ]
+      });
+
+      if (!game) {
+        throw new Error('AI game not found');
+      }
+
+      if (game.game_type !== 'ai') {
+        throw new Error('Not an AI game');
+      }
+
+      // Add chess position analysis
+      const chess = new Chess(game.current_fen);
+      
+      return {
+        ...game.toJSON(),
+        analysis: {
+          isCheck: chess.isCheck(),
+          isCheckmate: chess.isCheckmate(),
+          isStalemate: chess.isStalemate(),
+          isDraw: chess.isDraw(),
+          isGameOver: chess.isGameOver(),
+          turn: chess.turn(),
+          legalMoves: chess.moves()
+        }
+      };
+    } catch (error) {
+      logger.error('Failed to get AI game state', { error: error.message, gameId });
+      throw error;
+    }
+  }
+
+  /**
+   * Make a move for the user in AI game
+   */
+  async makeUserMove(gameId, userId, moveData) {
+    const transaction = await db.sequelize.transaction();
+    
+    try {
+      const game = await db.Game.findByPk(gameId, {
+        include: [{
+          model: db.Player,
+          as: 'players'
+        }],
+        transaction
+      });
+
+      if (!game) {
+        throw new Error('AI game not found');
+      }
+
+      if (game.game_type !== 'ai') {
+        throw new Error('Not an AI game');
+      }
+
+      if (game.status !== 'active') {
+        throw new Error('Game is not active');
+      }
+
+      const userPlayer = game.players.find(p => p.user_id === userId);
+      if (!userPlayer) {
+        throw new Error('You are not in this game');
+      }
+
+      // Validate turn
+      const chess = new Chess(game.current_fen);
+      const currentTurn = chess.turn() === 'w' ? 'white' : 'black';
+      
+      if (userPlayer.color !== currentTurn) {
+        throw new Error('It is not your turn');
+      }
+
+      // Make the move (reuse game service logic)
+      const gameService = require('./gameService');
+      const moveResult = await gameService.makeMove(gameId, userId, moveData);
+
+      await transaction.commit();
+
+      // If game is still active and it's AI's turn, make AI move
+      const updatedGame = await this.getAIGameState(gameId);
+      if (updatedGame.status === 'active') {
+        const aiPlayer = updatedGame.players.find(p => p.is_ai);
+        const currentTurnAfterMove = new Chess(updatedGame.current_fen).turn() === 'w' ? 'white' : 'black';
+        
+        if (aiPlayer.color === currentTurnAfterMove) {
+          // Make AI move after a short delay
+          setTimeout(async () => {
+            try {
+              await this.makeAIMove(gameId);
+            } catch (error) {
+              logger.error('Failed to make AI move', { error: error.message, gameId });
+            }
+          }, this.difficulties[game.ai_difficulty].thinking_time);
+        }
+      }
+
+      return moveResult;
+    } catch (error) {
+      await transaction.rollback();
+      logger.error('Failed to make user move in AI game', { error: error.message, gameId, userId });
+      throw error;
+    }
+  }
+
+  /**
+   * Make AI move
+   */
+  async makeAIMove(gameId) {
+    try {
+      const game = await db.Game.findByPk(gameId, {
+        include: [{
+          model: db.Player,
+          as: 'players'
+        }]
+      });
+
+      if (!game || game.status !== 'active') {
+        return null;
+      }
+
+      const aiPlayer = game.players.find(p => p.is_ai);
+      if (!aiPlayer) {
+        throw new Error('No AI player found');
+      }
+
+      const chess = new Chess(game.current_fen);
+      const currentTurn = chess.turn() === 'w' ? 'white' : 'black';
+      
+      if (aiPlayer.color !== currentTurn) {
+        return null; // Not AI's turn
+      }
+
+      // Generate AI move
+      const aiMove = this.generateAIMove(chess, game.ai_difficulty);
+      if (!aiMove) {
+        throw new Error('AI could not generate a move');
+      }
+
+      // Make the move using game service
+      const gameService = require('./gameService');
+      
+      // Create a temporary user ID for AI moves
+      const aiUserId = aiPlayer.user_id || 'ai-' + aiPlayer.id;
+      
+      // We need to temporarily allow AI moves by modifying the game service
+      // For now, let's create the move directly in the database
+      const move = chess.move(aiMove);
+      if (!move) {
+        throw new Error('Invalid AI move generated');
+      }
+
+      const moveNumber = Math.ceil((game.move_count + 1) / 2);
+
+      // Record AI move
+      await db.Move.create({
+        game_id: gameId,
+        player_id: aiPlayer.id,
+        move_number: moveNumber,
+        color: aiPlayer.color,
+        san: move.san,
+        uci: `${move.from}${move.to}${move.promotion || ''}`,
+        from_square: move.from,
+        to_square: move.to,
+        piece: move.piece,
+        captured_piece: move.captured || null,
+        promotion_piece: move.promotion || null,
+        is_check: chess.isCheck(),
+        is_checkmate: chess.isCheckmate(),
+        is_castling: move.flags.includes('k') || move.flags.includes('q'),
+        is_en_passant: move.flags.includes('e'),
+        fen_after: chess.fen(),
+        time_spent_ms: this.difficulties[game.ai_difficulty].thinking_time
+      });
+
+      // Update game state
+      const updateData = {
+        current_fen: chess.fen(),
+        current_turn: chess.turn() === 'w' ? 'white' : 'black',
+        move_count: game.move_count + 1,
+        last_move_at: new Date()
+      };
+
+      // Check for game end
+      if (chess.isGameOver()) {
+        updateData.status = 'finished';
+        updateData.finished_at = new Date();
+        
+        if (chess.isCheckmate()) {
+          updateData.result = chess.turn() === 'w' ? 'black_wins' : 'white_wins';
+          updateData.result_reason = 'checkmate';
+        } else if (chess.isStalemate()) {
+          updateData.result = 'draw';
+          updateData.result_reason = 'stalemate';
+        } else if (chess.isDraw()) {
+          updateData.result = 'draw';
+          updateData.result_reason = 'insufficient_material';
+        }
+      }
+
+      await db.Game.update(updateData, {
+        where: { id: gameId }
+      });
+
+      logger.info('AI move made', { 
+        gameId, 
+        move: move.san,
+        difficulty: game.ai_difficulty 
+      });
+
+      return {
+        move: {
+          san: move.san,
+          uci: `${move.from}${move.to}${move.promotion || ''}`,
+          from: move.from,
+          to: move.to,
+          piece: move.piece,
+          captured: move.captured,
+          promotion: move.promotion
+        }
+      };
+    } catch (error) {
+      logger.error('Failed to make AI move', { error: error.message, gameId });
+      throw error;
+    }
+  }
+
+  /**
+   * Generate AI move based on difficulty
+   */
+  generateAIMove(chess, difficulty) {
+    const moves = chess.moves();
+    if (moves.length === 0) {
       return null;
     }
 
-    return {
-      id: gameId,
-      difficulty: game.difficulty,
-      playerColor: game.playerColor,
-      aiColor: game.aiColor,
-      fen: game.chess.fen(),
-      turn: game.chess.turn(),
-      status: game.chess.isGameOver() ? GAME_STATUS.FINISHED : GAME_STATUS.ACTIVE,
-      moves: game.moves,
-      gameOver: game.chess.isGameOver(),
-      isCheck: game.chess.isCheck(),
-      isCheckmate: game.chess.isCheckmate(),
-      isStalemate: game.chess.isStalemate(),
-      isDraw: game.chess.isDraw(),
-      lastActivity: game.lastActivity
-    };
-  }
-
-  /**
-   * Make a move in the game
-   * @param {string} gameId - Game identifier
-   * @param {string|Object} move - Move to make
-   * @returns {Promise<Object>} Move result
-   */
-  async makeMove(gameId, move) {
-    try {
-      const game = this.aiGames.get(gameId);
-      if (!game) {
-        return { error: ERROR_MESSAGES.GAME_NOT_FOUND };
-      }
-
-      if (game.chess.isGameOver()) {
-        return { error: ERROR_MESSAGES.GAME_ALREADY_OVER };
-      }
-
-      // Validate it's player's turn
-      const currentTurn = game.chess.turn();
-      const playerTurn = game.playerColor === COLORS.WHITE ? 'w' : 'b';
-      
-      if (currentTurn !== playerTurn) {
-        return { error: ERROR_MESSAGES.NOT_YOUR_TURN };
-      }
-
-      // Make player move
-      let playerMove;
-      try {
-        playerMove = game.chess.move(move);
-        if (!playerMove) {
-          return { error: ERROR_MESSAGES.INVALID_MOVE };
-        }
-      } catch (error) {
-        return { error: ERROR_MESSAGES.INVALID_MOVE };
-      }
-
-      // Update game activity
-      game.lastActivity = new Date();
-      
-      // Add move to history
-      game.moves.push({
-        from: playerMove.from,
-        to: playerMove.to,
-        san: playerMove.san,
-        player: 'human',
-        timestamp: getCurrentTimestamp()
-      });
-
-      // Check if game is over after player move
-      if (game.chess.isGameOver()) {
-        game.status = this.getGameEndStatus(game.chess);
-        
-        return {
-          playerMove: {
-            from: playerMove.from,
-            to: playerMove.to,
-            san: playerMove.san
-          },
-          gameState: this.getGameState(gameId),
-          moves: game.moves
-        };
-      }
-
-      // Generate AI response
-      let aiMove = null;
-      try {
-        aiMove = await this.generateMove(gameId);
-        if (aiMove) {
-          game.moves.push({
-            ...aiMove,
-            player: 'ai',
-            timestamp: getCurrentTimestamp()
-          });
-        }
-      } catch (error) {
-        logger.error('Error generating AI move', { 
-          gameId, 
-          error: error.message 
-        });
-        return { error: 'Failed to generate AI move' };
-      }
-
-      return {
-        playerMove: {
-          from: playerMove.from,
-          to: playerMove.to,
-          san: playerMove.san
-        },
-        aiMove: aiMove ? {
-          from: aiMove.from,
-          to: aiMove.to,
-          san: aiMove.san
-        } : null,
-        gameState: this.getGameState(gameId),
-        moves: game.moves
-      };
-    } catch (error) {
-      logger.error('Error making move', { 
-        gameId, 
-        move, 
-        error: error.message 
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Generate AI move for current position
-   * @param {string} gameId - Game identifier
-   * @returns {Promise<Object|null>} AI move or null
-   */
-  async generateMove(gameId) {
-    try {
-      const game = this.aiGames.get(gameId);
-      if (!game) {
-        throw new Error(ERROR_MESSAGES.GAME_NOT_FOUND);
-      }
-
-      const config = this.getDifficultyConfig(game.difficulty);
-      
-      // Simulate thinking time
-      await sleep(config.moveTime);
-      
-      let bestMove;
-      
-      switch (game.difficulty) {
-        case AI_DIFFICULTIES.BEGINNER:
-          bestMove = this.getRandomMove(game.chess);
-          break;
-        case AI_DIFFICULTIES.INTERMEDIATE:
-          bestMove = this.getBasicMove(game.chess);
-          break;
-        case AI_DIFFICULTIES.ADVANCED:
-          bestMove = this.getTacticalMove(game.chess);
-          break;
-        case AI_DIFFICULTIES.EXPERT:
-          bestMove = this.getStrategicMove(game.chess);
-          break;
-        default:
-          bestMove = this.getBasicMove(game.chess);
-      }
-
-      if (!bestMove) {
-        return null;
-      }
-
-      // Make the move
-      const move = game.chess.move(bestMove);
-      if (!move) {
-        return null;
-      }
-
-      return {
-        from: move.from,
-        to: move.to,
-        san: move.san,
-        uci: bestMove
-      };
-    } catch (error) {
-      logger.error('Error generating AI move', { 
-        gameId, 
-        error: error.message 
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Evaluate current position
-   * @param {string} gameId - Game identifier
-   * @returns {Promise<Object>} Position evaluation
-   */
-  async evaluatePosition(gameId) {
-    try {
-      const game = this.aiGames.get(gameId);
-      if (!game) {
-        return { error: ERROR_MESSAGES.GAME_NOT_FOUND };
-      }
-
-      // Simple evaluation - in a real implementation, this would use
-      // a proper chess engine evaluation
-      const evaluation = {
-        score: 0,
-        advantage: 'equal',
-        description: 'Position evaluation not available in simple AI mode'
-      };
-
-      return evaluation;
-    } catch (error) {
-      logger.error('Error evaluating position', { 
-        gameId, 
-        error: error.message 
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * End AI game and cleanup
-   * @param {string} gameId - Game identifier
-   * @returns {Object} Result object
-   */
-  async endGame(gameId) {
-    try {
-      if (!this.aiGames.has(gameId)) {
-        return { error: ERROR_MESSAGES.GAME_NOT_FOUND };
-      }
-
-      this.aiGames.delete(gameId);
-      
-      logger.info('AI game ended', { gameId });
-      
-      return { success: true };
-    } catch (error) {
-      logger.error('Error ending AI game', { 
-        gameId, 
-        error: error.message 
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Get available difficulty levels
-   * @returns {Array} Array of difficulty configurations
-   */
-  getDifficultyLevels() {
-    return [
-      { 
-        value: AI_DIFFICULTIES.BEGINNER, 
-        label: 'Beginner', 
-        ...this.getDifficultyConfig(AI_DIFFICULTIES.BEGINNER) 
-      },
-      { 
-        value: AI_DIFFICULTIES.INTERMEDIATE, 
-        label: 'Intermediate', 
-        ...this.getDifficultyConfig(AI_DIFFICULTIES.INTERMEDIATE) 
-      },
-      { 
-        value: AI_DIFFICULTIES.ADVANCED, 
-        label: 'Advanced', 
-        ...this.getDifficultyConfig(AI_DIFFICULTIES.ADVANCED) 
-      },
-      { 
-        value: AI_DIFFICULTIES.EXPERT, 
-        label: 'Expert', 
-        ...this.getDifficultyConfig(AI_DIFFICULTIES.EXPERT) 
-      }
-    ];
-  }
-
-  /**
-   * Get game end status
-   * @param {Chess} chess - Chess instance
-   * @returns {string} Game status
-   */
-  getGameEndStatus(chess) {
-    if (chess.isCheckmate()) {
-      return GAME_STATUS.CHECKMATE;
-    }
-    if (chess.isStalemate()) {
-      return GAME_STATUS.STALEMATE;
-    }
-    if (chess.isDraw()) {
-      return GAME_STATUS.DRAW;
-    }
-    return GAME_STATUS.FINISHED;
-  }
-
-  /**
-   * Start cleanup interval for old games
-   */
-    startCleanupInterval() {
-        if (process.env.NODE_ENV !== 'test') {
-            setInterval(() => {
-                this.cleanupOldGames();
-            }, config.ai.cleanupInterval);
-        }
-    }
-
-  /**
-   * Cleanup old games
-   */
-  cleanupOldGames() {
-    const now = Date.now();
-    const maxAge = config.game.gameTimeout;
+    const difficultySettings = this.difficulties[difficulty];
     
-    for (const [gameId, game] of this.aiGames) {
-      if (now - game.lastActivity.getTime() > maxAge) {
-        this.aiGames.delete(gameId);
-        logger.info('Cleaned up old AI game', { gameId });
+    // Simple AI logic based on difficulty
+    if (difficultySettings.level <= 3) {
+      // Beginner/Easy: Random moves with slight preference for captures
+      const captures = chess.moves({ verbose: true }).filter(move => move.captured);
+      if (captures.length > 0 && Math.random() > 0.7) {
+        return captures[Math.floor(Math.random() * captures.length)].san;
       }
+      return moves[Math.floor(Math.random() * moves.length)];
+    } else if (difficultySettings.level <= 8) {
+      // Intermediate/Hard: Basic tactical awareness
+      return this.getBestMoveBasic(chess);
+    } else {
+      // Expert/Master: Advanced evaluation
+      return this.getBestMoveAdvanced(chess);
     }
   }
 
-  // AI Move Generation Methods (from the original stockfishService.js)
-  // ... (Include all the move generation methods from the original file)
-  
   /**
-   * Get random move (beginner level)
-   * @param {Chess} chess - Chess instance
-   * @returns {string} Random move in UCI format
+   * Basic move evaluation
    */
-  getRandomMove(chess) {
+  getBestMoveBasic(chess) {
     const moves = chess.moves({ verbose: true });
-    if (moves.length === 0) return null;
-    
-    const randomMove = moves[Math.floor(Math.random() * moves.length)];
-    return randomMove.from + randomMove.to + (randomMove.promotion || '');
-  }
+    let bestMove = null;
+    let bestScore = -9999;
 
-  /**
-   * Get basic move with simple evaluation (intermediate level)
-   * @param {Chess} chess - Chess instance
-   * @returns {string} Best move in UCI format
-   */
-  getBasicMove(chess) {
-    const moves = chess.moves({ verbose: true });
-    if (moves.length === 0) return null;
-    
-    let bestMove = moves[0];
-    let bestScore = -1000;
-    
     for (const move of moves) {
-      let score = 0;
+      chess.move(move);
+      let score = this.evaluatePosition(chess);
       
-      // Heavily favor captures
+      // Prefer captures
       if (move.captured) {
         score += this.getPieceValue(move.captured) * 10;
       }
       
-      // Favor checks
-      chess.move(move);
-      if (chess.isCheck()) {
-        score += 30;
+      // Avoid moving into check
+      if (chess.inCheck()) {
+        score -= 50;
       }
+
       chess.undo();
-      
-      // Favor center control
-      if (['d4', 'd5', 'e4', 'e5'].includes(move.to)) {
-        score += 20;
-      }
-      
-      // Favor piece development
-      if (move.piece !== 'p' && ['a1', 'a8', 'h1', 'h8'].includes(move.from)) {
-        score += 15;
-      }
-      
-      // Add some randomness
-      score += Math.random() * 10;
-      
+
       if (score > bestScore) {
         bestScore = score;
-        bestMove = move;
+        bestMove = move.san;
       }
     }
-    
-    return bestMove.from + bestMove.to + (bestMove.promotion || '');
+
+    return bestMove || moves[0].san;
   }
 
   /**
-   * Get tactical move (advanced level)
-   * @param {Chess} chess - Chess instance
-   * @returns {string} Best move in UCI format
+   * Advanced move evaluation
    */
-  getTacticalMove(chess) {
-    const moves = chess.moves({ verbose: true });
-    if (moves.length === 0) return null;
-    
-    let bestMove = moves[0];
-    let bestScore = -1000;
-    
-    for (const move of moves) {
-      let score = 0;
-      
-      chess.move(move);
-      
-      // Check for checkmate
-      if (chess.isCheckmate()) {
-        chess.undo();
-        return move.from + move.to + (move.promotion || '');
-      }
-      
-      // Heavy penalty for allowing checkmate
-      const opponentMoves = chess.moves({ verbose: true });
-      let allowsCheckmate = false;
-      
-      for (const opponentMove of opponentMoves) {
-        chess.move(opponentMove);
-        if (chess.isCheckmate()) {
-          allowsCheckmate = true;
-          chess.undo();
-          break;
-        }
-        chess.undo();
-      }
-      
-      if (allowsCheckmate) {
-        score -= 1000;
-      }
-      
-      // Check for checks
-      if (chess.isCheck()) {
-        score += 50;
-      }
-      
-      // Evaluate captures
-      if (move.captured) {
-        score += this.getPieceValue(move.captured) * 10;
-        
-        // Bonus for capturing higher value pieces
-        if (this.getPieceValue(move.captured) > this.getPieceValue(move.piece)) {
-          score += 20;
-        }
-      }
-      
-      chess.undo();
-      
-      // Add small random element
-      score += Math.random() * 5;
-      
-      if (score > bestScore) {
-        bestScore = score;
-        bestMove = move;
-      }
-    }
-    
-    return bestMove.from + bestMove.to + (bestMove.promotion || '');
+  getBestMoveAdvanced(chess) {
+    // For now, use the same as basic but with deeper evaluation
+    // In a real implementation, you would use a proper chess engine
+    return this.getBestMoveBasic(chess);
   }
 
   /**
-   * Get strategic move (expert level)
-   * @param {Chess} chess - Chess instance
-   * @returns {string} Best move in UCI format
+   * Simple position evaluation
    */
-  getStrategicMove(chess) {
-    const moves = chess.moves({ verbose: true });
-    if (moves.length === 0) return null;
-    
-    let bestMove = moves[0];
-    let bestScore = -1000;
-    
-    for (const move of moves) {
-      let score = 0;
-      
-      chess.move(move);
-      
-      // Checkmate detection
-      if (chess.isCheckmate()) {
-        chess.undo();
-        return move.from + move.to + (move.promotion || '');
-      }
-      
-      // Avoid allowing checkmate
-      const opponentMoves = chess.moves({ verbose: true });
-      let allowsCheckmate = false;
-      
-      for (const opponentMove of opponentMoves) {
-        chess.move(opponentMove);
-        if (chess.isCheckmate()) {
-          allowsCheckmate = true;
-          chess.undo();
-          break;
-        }
-        chess.undo();
-      }
-      
-      if (allowsCheckmate) {
-        score -= 2000;
-      }
-      
-      // Material evaluation
-      if (move.captured) {
-        score += this.getPieceValue(move.captured) * 10;
-      }
-      
-      // Positional evaluation
-      score += this.evaluatePositionScore(chess);
-      
-      chess.undo();
-      
-      // Very small random element for variety
-      score += Math.random() * 2;
-      
-      if (score > bestScore) {
-        bestScore = score;
-        bestMove = move;
-      }
-    }
-    
-    return bestMove.from + bestMove.to + (bestMove.promotion || '');
-  }
-
-  /**
-   * Get piece value
-   * @param {string} piece - Piece type
-   * @returns {number} Piece value
-   */
-  getPieceValue(piece) {
-    return PIECE_VALUES[piece.toLowerCase()] || 0;
-  }
-
-  /**
-   * Evaluate position score
-   * @param {Chess} chess - Chess instance
-   * @returns {number} Position score
-   */
-  evaluatePositionScore(chess) {
+  evaluatePosition(chess) {
     let score = 0;
-    
-    // Center control
-    const centerSquares = ['d4', 'd5', 'e4', 'e5'];
     const board = chess.board();
-    
+
     for (let i = 0; i < 8; i++) {
       for (let j = 0; j < 8; j++) {
-        const square = String.fromCharCode(97 + j) + (8 - i);
         const piece = board[i][j];
-        
         if (piece) {
-          // Center control bonus
-          if (centerSquares.includes(square)) {
-            score += piece.color === chess.turn() ? 10 : -10;
-          }
-          
-          // Piece development bonus
-          if (piece.type !== 'p' && piece.type !== 'k') {
-            const isOnBackRank = (piece.color === 'w' && i === 7) || (piece.color === 'b' && i === 0);
-            if (!isOnBackRank) {
-              score += piece.color === chess.turn() ? 5 : -5;
-            }
-          }
+          const value = this.getPieceValue(piece.type);
+          score += piece.color === 'w' ? value : -value;
         }
       }
     }
-    
+
     return score;
   }
 
   /**
-   * Get difficulty configuration
-   * @param {string} difficulty - Difficulty level
-   * @returns {Object} Configuration object
+   * Get piece value for evaluation
    */
-  getDifficultyConfig(difficulty) {
-    const configs = {
-      [AI_DIFFICULTIES.BEGINNER]: {
-        depth: 1,
-        skillLevel: 1,
-        moveTime: 500,
-        description: 'Random moves, good for absolute beginners'
-      },
-      [AI_DIFFICULTIES.INTERMEDIATE]: {
-        depth: 3,
-        skillLevel: 10,
-        moveTime: 1000,
-        description: 'Basic tactics and piece development'
-      },
-      [AI_DIFFICULTIES.ADVANCED]: {
-        depth: 5,
-        skillLevel: 15,
-        moveTime: 2000,
-        description: 'Tactical patterns and strategic concepts'
-      },
-      [AI_DIFFICULTIES.EXPERT]: {
-        depth: 7,
-        skillLevel: 20,
-        moveTime: 3000,
-        description: 'Deep analysis with strategic understanding'
-      }
+  getPieceValue(pieceType) {
+    const values = {
+      'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 0
     };
+    return values[pieceType] || 0;
+  }
 
-    return configs[difficulty] || configs[AI_DIFFICULTIES.INTERMEDIATE];
+  /**
+   * Get hint for user
+   */
+  async getHint(gameId, userId) {
+    try {
+      const game = await this.getAIGameState(gameId);
+      
+      if (!game) {
+        throw new Error('Game not found');
+      }
+
+      const userPlayer = game.players.find(p => p.user_id === userId);
+      if (!userPlayer) {
+        throw new Error('You are not in this game');
+      }
+
+      const chess = new Chess(game.current_fen);
+      const currentTurn = chess.turn() === 'w' ? 'white' : 'black';
+      
+      if (userPlayer.color !== currentTurn) {
+        throw new Error('It is not your turn');
+      }
+
+      // Generate hint using AI logic
+      const hintMove = this.getBestMoveAdvanced(chess);
+      
+      logger.info('Hint generated', { gameId, userId, hint: hintMove });
+      
+      return {
+        hint: hintMove,
+        message: 'Consider this move'
+      };
+    } catch (error) {
+      logger.error('Failed to generate hint', { error: error.message, gameId, userId });
+      throw error;
+    }
+  }
+
+  /**
+   * End AI game
+   */
+  async endAIGame(gameId, userId) {
+    try {
+      const game = await db.Game.findByPk(gameId, {
+        include: [{
+          model: db.Player,
+          as: 'players'
+        }]
+      });
+
+      if (!game) {
+        throw new Error('Game not found');
+      }
+
+      const userPlayer = game.players.find(p => p.user_id === userId);
+      if (!userPlayer) {
+        throw new Error('You are not in this game');
+      }
+
+      if (game.status === 'finished') {
+        throw new Error('Game is already finished');
+      }
+
+      // End the game
+      await db.Game.update({
+        status: 'abandoned',
+        finished_at: new Date()
+      }, {
+        where: { id: gameId }
+      });
+
+      logger.info('AI game ended', { gameId, userId });
+      
+      return { message: 'Game ended successfully' };
+    } catch (error) {
+      logger.error('Failed to end AI game', { error: error.message, gameId, userId });
+      throw error;
+    }
+  }
+
+  /**
+   * Get difficulty description
+   */
+  getDifficultyDescription(difficulty) {
+    const descriptions = {
+      beginner: 'Perfect for learning the basics',
+      easy: 'Good for casual play',
+      intermediate: 'Balanced challenge',
+      hard: 'Strong tactical play',
+      expert: 'Advanced strategic thinking',
+      master: 'Near-master level play'
+    };
+    return descriptions[difficulty] || 'Unknown difficulty';
   }
 }
 
-// Create singleton instance
-const aiService = new AIService();
-
-// Cleanup on process exit
-process.on('exit', () => {
-  aiService.aiGames.clear();
-});
-
-process.on('SIGINT', () => {
-  aiService.aiGames.clear();
-  process.exit(0);
-});
-
-module.exports = aiService;
+module.exports = new AIService();

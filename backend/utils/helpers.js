@@ -1,148 +1,200 @@
-/**
- * Utility Functions
- * Common utility functions for the chess application
- */
-
+// utils/helpers.js
 const { v4: uuidv4 } = require('uuid');
-const { VALIDATION } = require('./constants');
 
 /**
- * Generate a unique game ID
- * @returns {string} UUID v4 string
+ * Format success response
+ */
+function formatSuccessResponse(data, message = 'Success', meta = {}) {
+  return {
+    success: true,
+    message,
+    data,
+    meta,
+    timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * Format error response
+ */
+function formatErrorResponse(message, code = 'ERROR', details = null) {
+  const response = {
+    success: false,
+    error: message,
+    code,
+    timestamp: new Date().toISOString()
+  };
+
+  if (details && process.env.NODE_ENV === 'development') {
+    response.details = details;
+  }
+
+  return response;
+}
+
+/**
+ * Validate required fields
+ */
+function validateRequired(data, requiredFields) {
+  const missingFields = [];
+  
+  requiredFields.forEach(field => {
+    if (!data[field] || data[field] === '') {
+      missingFields.push(field);
+    }
+  });
+  
+  return missingFields;
+}
+
+/**
+ * Sanitize player name
+ */
+function sanitizePlayerName(name) {
+  if (!name || typeof name !== 'string') {
+    return null;
+  }
+  
+  // Remove special characters, keep only alphanumeric, spaces, dashes, underscores
+  const sanitized = name.trim()
+    .replace(/[^\w\s\-_.]/g, '')
+    .substring(0, 50);
+  
+  return sanitized || null;
+}
+
+/**
+ * Sanitize chat message
+ */
+function sanitizeChatMessage(message) {
+  if (!message || typeof message !== 'string') {
+    return null;
+  }
+  
+  const sanitized = message.trim().substring(0, 500);
+  
+  // Basic profanity filter (extend as needed)
+  const profanityWords = ['spam', 'bot', 'cheat']; // Add more as needed
+  let filtered = sanitized;
+  
+  profanityWords.forEach(word => {
+    const regex = new RegExp(word, 'gi');
+    filtered = filtered.replace(regex, '*'.repeat(word.length));
+  });
+  
+  return filtered || null;
+}
+
+/**
+ * Generate unique game ID
  */
 function generateGameId() {
   return uuidv4();
 }
 
 /**
- * Generate a unique player ID
- * @returns {string} UUID v4 string
+ * Generate unique player ID
  */
 function generatePlayerId() {
   return uuidv4();
 }
 
 /**
- * Generate a unique message ID
- * @returns {string} UUID v4 string
- */
-function generateMessageId() {
-  return uuidv4();
-}
-
-/**
- * Validate if a string is a valid UUID
- * @param {string} id - The ID to validate
- * @returns {boolean} True if valid UUID
- */
-function isValidUUID(id) {
-  return typeof id === 'string' && VALIDATION.GAME_ID_PATTERN.test(id);
-}
-
-/**
- * Validate if a move is in valid UCI format
- * @param {string} move - The move to validate
- * @returns {boolean} True if valid UCI move
- */
-function isValidUCIMove(move) {
-  return typeof move === 'string' && VALIDATION.UCI_MOVE_PATTERN.test(move);
-}
-
-/**
- * Validate player name
- * @param {string} name - Player name to validate
- * @returns {boolean} True if valid
- */
-function isValidPlayerName(name) {
-  return typeof name === 'string' && 
-         name.length >= VALIDATION.MIN_PLAYER_NAME_LENGTH &&
-         name.length <= VALIDATION.MAX_PLAYER_NAME_LENGTH &&
-         name.trim().length > 0;
-}
-
-/**
- * Validate chat message
- * @param {string} message - Message to validate
- * @returns {boolean} True if valid
- */
-function isValidChatMessage(message) {
-  return typeof message === 'string' &&
-         message.length <= VALIDATION.MAX_CHAT_MESSAGE_LENGTH &&
-         message.trim().length > 0;
-}
-
-/**
- * Sanitize player name
- * @param {string} name - Player name to sanitize
- * @returns {string} Sanitized name
- */
-function sanitizePlayerName(name) {
-  if (!name || typeof name !== 'string') {
-    return '';
-  }
-  
-  return name
-    .trim()
-    .replace(/[<>]/g, '') // Remove potential HTML tags
-    .substring(0, VALIDATION.MAX_PLAYER_NAME_LENGTH);
-}
-
-/**
- * Sanitize chat message
- * @param {string} message - Message to sanitize
- * @returns {string} Sanitized message
- */
-function sanitizeChatMessage(message) {
-  if (!message || typeof message !== 'string') {
-    return '';
-  }
-  
-  return message
-    .trim()
-    .replace(/[<>]/g, '') // Remove potential HTML tags
-    .substring(0, VALIDATION.MAX_CHAT_MESSAGE_LENGTH);
-}
-
-/**
- * Get current timestamp in ISO format
- * @returns {string} ISO timestamp
+ * Get current timestamp
  */
 function getCurrentTimestamp() {
-  return new Date().toISOString();
+  return Date.now();
 }
 
 /**
- * Format error response
- * @param {string} message - Error message
- * @param {string} code - Error code (optional)
- * @returns {Object} Formatted error response
+ * Format time duration
  */
-function formatErrorResponse(message, code = null) {
-  return {
-    success: false,
-    message,
-    ...(code && { code })
-  };
+function formatDuration(milliseconds) {
+  const seconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds % 60}s`;
+  } else {
+    return `${seconds}s`;
+  }
 }
 
 /**
- * Format success response
- * @param {*} data - Response data
- * @param {string} message - Success message (optional)
- * @returns {Object} Formatted success response
+ * Calculate time remaining
  */
-function formatSuccessResponse(data, message = null) {
-  return {
-    success: true,
-    ...(message && { message }),
-    ...(data && { data })
-  };
+function calculateTimeRemaining(startTime, timeLimit) {
+  const elapsed = Date.now() - startTime;
+  return Math.max(0, timeLimit - elapsed);
 }
 
 /**
- * Deep clone an object
- * @param {*} obj - Object to clone
- * @returns {*} Cloned object
+ * Parse time control string (e.g., "10+5" -> {minutes: 10, increment: 5})
+ */
+function parseTimeControl(timeControl) {
+  if (!timeControl || typeof timeControl !== 'string') {
+    return { minutes: 10, increment: 0 };
+  }
+  
+  const parts = timeControl.split('+');
+  const minutes = parseInt(parts[0]) || 10;
+  const increment = parseInt(parts[1]) || 0;
+  
+  return { minutes, increment };
+}
+
+/**
+ * Validate email format
+ */
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+/**
+ * Validate chess square notation (e.g., "e4", "a1")
+ */
+function isValidSquare(square) {
+  if (!square || typeof square !== 'string') {
+    return false;
+  }
+  
+  const squareRegex = /^[a-h][1-8]$/;
+  return squareRegex.test(square);
+}
+
+/**
+ * Validate chess move notation (basic validation)
+ */
+function isValidMoveNotation(move) {
+  if (!move || typeof move !== 'string') {
+    return false;
+  }
+  
+  // Basic SAN (Standard Algebraic Notation) validation
+  const moveRegex = /^[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](\=[NBRQ])?[\+#]?$|^O-O(-O)?[\+#]?$/;
+  return moveRegex.test(move);
+}
+
+/**
+ * Generate random string
+ */
+function generateRandomString(length = 8) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  
+  return result;
+}
+
+/**
+ * Deep clone object
  */
 function deepClone(obj) {
   if (obj === null || typeof obj !== 'object') {
@@ -157,119 +209,289 @@ function deepClone(obj) {
     return obj.map(item => deepClone(item));
   }
   
-  if (typeof obj === 'object') {
-    const cloned = {};
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        cloned[key] = deepClone(obj[key]);
-      }
+  const clonedObj = {};
+  for (const key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      clonedObj[key] = deepClone(obj[key]);
     }
-    return cloned;
   }
   
-  return obj;
+  return clonedObj;
 }
 
 /**
- * Sleep for a specified number of milliseconds
- * @param {number} ms - Milliseconds to sleep
- * @returns {Promise} Promise that resolves after the specified time
+ * Remove sensitive information from user object
+ */
+function sanitizeUserData(user) {
+  if (!user) return null;
+  
+  const sensitiveFields = ['password_hash', 'reset_token', 'verification_token'];
+  const sanitized = { ...user };
+  
+  sensitiveFields.forEach(field => {
+    delete sanitized[field];
+  });
+  
+  return sanitized;
+}
+
+/**
+ * Calculate pagination info
+ */
+function calculatePagination(page, limit, total) {
+  const currentPage = Math.max(1, parseInt(page));
+  const itemsPerPage = Math.min(100, Math.max(1, parseInt(limit)));
+  const totalPages = Math.ceil(total / itemsPerPage);
+  const offset = (currentPage - 1) * itemsPerPage;
+  
+  return {
+    page: currentPage,
+    limit: itemsPerPage,
+    total,
+    pages: totalPages,
+    offset,
+    hasNext: currentPage < totalPages,
+    hasPrev: currentPage > 1
+  };
+}
+
+/**
+ * Convert chess piece notation
+ */
+function convertPieceNotation(piece, format = 'symbol') {
+  const pieceMap = {
+    'p': { name: 'pawn', symbol: '♟', unicode: '\u265F' },
+    'r': { name: 'rook', symbol: '♜', unicode: '\u265C' },
+    'n': { name: 'knight', symbol: '♞', unicode: '\u265E' },
+    'b': { name: 'bishop', symbol: '♝', unicode: '\u265D' },
+    'q': { name: 'queen', symbol: '♛', unicode: '\u265B' },
+    'k': { name: 'king', symbol: '♚', unicode: '\u265A' }
+  };
+  
+  if (!piece || !pieceMap[piece.toLowerCase()]) {
+    return null;
+  }
+  
+  const pieceInfo = pieceMap[piece.toLowerCase()];
+  return pieceInfo[format] || piece;
+}
+
+/**
+ * Calculate ELO rating change
+ */
+function calculateEloChange(playerRating, opponentRating, score, kFactor = 32) {
+  const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 400));
+  return Math.round(kFactor * (score - expectedScore));
+}
+
+/**
+ * Get K-factor for ELO calculation based on rating and games played
+ */
+function getKFactor(rating, gamesPlayed) {
+  if (gamesPlayed < 30) return 40;
+  if (rating < 2100) return 32;
+  if (rating < 2400) return 24;
+  return 16;
+}
+
+/**
+ * Validate UUID format
+ */
+function isValidUUID(uuid) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
+
+/**
+ * Convert milliseconds to readable time format
+ */
+function msToTime(ms) {
+  const seconds = Math.floor((ms / 1000) % 60);
+  const minutes = Math.floor((ms / (1000 * 60)) % 60);
+  const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+  
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Get user's display name (fallback to username)
+ */
+function getUserDisplayName(user) {
+  if (!user) return 'Unknown';
+  return user.display_name || user.username || 'Anonymous';
+}
+
+/**
+ * Escape HTML entities
+ */
+function escapeHtml(text) {
+  if (!text) return '';
+  
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+/**
+ * Generate slug from string
+ */
+function generateSlug(text) {
+  if (!text) return '';
+  
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Check if string contains only alphanumeric characters
+ */
+function isAlphanumeric(str) {
+  if (!str) return false;
+  return /^[a-zA-Z0-9]+$/.test(str);
+}
+
+/**
+ * Truncate string with ellipsis
+ */
+function truncateString(str, maxLength, suffix = '...') {
+  if (!str || str.length <= maxLength) return str;
+  return str.substring(0, maxLength - suffix.length) + suffix;
+}
+
+/**
+ * Convert object to query string
+ */
+function objectToQueryString(obj) {
+  if (!obj || typeof obj !== 'object') return '';
+  
+  const params = new URLSearchParams();
+  
+  Object.keys(obj).forEach(key => {
+    if (obj[key] !== null && obj[key] !== undefined) {
+      params.append(key, obj[key]);
+    }
+  });
+  
+  return params.toString();
+}
+
+/**
+ * Retry function with exponential backoff
+ */
+async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      
+      const delay = baseDelay * Math.pow(2, attempt - 1);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
+/**
+ * Check if value is empty (null, undefined, empty string, empty array, empty object)
+ */
+function isEmpty(value) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.keys(value).length === 0;
+  return false;
+}
+
+/**
+ * Get random element from array
+ */
+function getRandomElement(array) {
+  if (!Array.isArray(array) || array.length === 0) return null;
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+/**
+ * Shuffle array using Fisher-Yates algorithm
+ */
+function shuffleArray(array) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+/**
+ * Group array by key
+ */
+function groupBy(array, key) {
+  return array.reduce((groups, item) => {
+    const groupKey = item[key];
+    if (!groups[groupKey]) {
+      groups[groupKey] = [];
+    }
+    groups[groupKey].push(item);
+    return groups;
+  }, {});
+}
+
+/**
+ * Sleep function
  */
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/**
- * Generate a random integer between min and max (inclusive)
- * @param {number} min - Minimum value
- * @param {number} max - Maximum value
- * @returns {number} Random integer
- */
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-/**
- * Generate a random float between min and max
- * @param {number} min - Minimum value
- * @param {number} max - Maximum value
- * @returns {number} Random float
- */
-function randomFloat(min, max) {
-  return Math.random() * (max - min) + min;
-}
-
-/**
- * Shuffle an array in place
- * @param {Array} array - Array to shuffle
- * @returns {Array} Shuffled array
- */
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
-
-/**
- * Truncate string to specified length
- * @param {string} str - String to truncate
- * @param {number} length - Maximum length
- * @param {string} suffix - Suffix to add (default: '...')
- * @returns {string} Truncated string
- */
-function truncateString(str, length, suffix = '...') {
-  if (!str || str.length <= length) {
-    return str;
-  }
-  
-  return str.substring(0, length - suffix.length) + suffix;
-}
-
-/**
- * Check if a value is empty (null, undefined, empty string, empty array, empty object)
- * @param {*} value - Value to check
- * @returns {boolean} True if empty
- */
-function isEmpty(value) {
-  if (value === null || value === undefined) {
-    return true;
-  }
-  
-  if (typeof value === 'string') {
-    return value.trim().length === 0;
-  }
-  
-  if (Array.isArray(value)) {
-    return value.length === 0;
-  }
-  
-  if (typeof value === 'object') {
-    return Object.keys(value).length === 0;
-  }
-  
-  return false;
-}
-
 module.exports = {
-  generateGameId,
-  generatePlayerId,
-  generateMessageId,
-  isValidUUID,
-  isValidUCIMove,
-  isValidPlayerName,
-  isValidChatMessage,
+  formatSuccessResponse,
+  formatErrorResponse,
+  validateRequired,
   sanitizePlayerName,
   sanitizeChatMessage,
+  generateGameId,
+  generatePlayerId,
   getCurrentTimestamp,
-  formatErrorResponse,
-  formatSuccessResponse,
+  formatDuration,
+  calculateTimeRemaining,
+  parseTimeControl,
+  isValidEmail,
+  isValidSquare,
+  isValidMoveNotation,
+  generateRandomString,
   deepClone,
-  sleep,
-  randomInt,
-  randomFloat,
-  shuffleArray,
+  sanitizeUserData,
+  calculatePagination,
+  convertPieceNotation,
+  calculateEloChange,
+  getKFactor,
+  isValidUUID,
+  msToTime,
+  getUserDisplayName,
+  escapeHtml,
+  generateSlug,
+  isAlphanumeric,
   truncateString,
-  isEmpty
+  objectToQueryString,
+  retryWithBackoff,
+  isEmpty,
+  getRandomElement,
+  shuffleArray,
+  groupBy,
+  sleep
 };

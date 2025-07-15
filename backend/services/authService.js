@@ -1,169 +1,277 @@
+// services/authService.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
-const User = require('../models/User');
+const db = require('../models');
 const config = require('../config');
 const logger = require('../utils/logger');
-const { ERROR_MESSAGES } = require('../utils/constants');
+const { v4: uuidv4 } = require('uuid');
 
 class AuthService {
   /**
-   * Registers a new user
+   * Register a new user
    */
-  async registerUser({ username, email, password }) {
+  async registerUser({ username, email, password, display_name, country }) {
+    const transaction = await db.sequelize.transaction();
+    
     try {
-      logger.info('Registering new user', { username, email });
-
-      const existingUser = await User.findOne({
-        where: { [Op.or]: [{ username }, { email }] }
+      // Check if user already exists
+      const existingUser = await db.User.findOne({
+        where: { 
+          [Op.or]: [
+            { username: username.toLowerCase() }, 
+            { email: email.toLowerCase() }
+          ] 
+        },
+        transaction
       });
 
       if (existingUser) {
-        throw new Error(ERROR_MESSAGES.USER_EXISTS || 'Username or email already exists');
+        if (existingUser.username === username.toLowerCase()) {
+          throw new Error('Username already exists');
+        }
+        if (existingUser.email === email.toLowerCase()) {
+          throw new Error('Email already exists');
+        }
       }
 
-      const saltRounds = config.auth?.bcryptSaltRounds || 10;
-      const password_hash = await bcrypt.hash(password, saltRounds);
+      // Hash password
+      const password_hash = await bcrypt.hash(password, 12);
 
-      const user = await User.create({ username, email, password_hash });
+      // Create user
+      const user = await db.User.create({
+        username: username.toLowerCase(),
+        email: email.toLowerCase(),
+        password_hash,
+        display_name: display_name || username,
+        country: country || null
+      }, { transaction });
 
-      logger.info('User registered successfully', { userId: user.id });
+      // Create default preferences
+      await db.UserPreferences.create({
+        user_id: user.id
+      }, { transaction });
+
+      await transaction.commit();
+      
+      logger.info('User registered successfully', { userId: user.id, username });
 
       return {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        display_name: user.display_name,
+        country: user.country
       };
     } catch (error) {
-      logger.error('Registration failed', { error: error.message });
+      await transaction.rollback();
+      logger.error('Registration failed', { error: error.message, username, email });
       throw error;
     }
   }
 
   /**
-   * Logs in a user
+   * Login user
    */
-  async loginUser({ username, email, password }) {
+  async loginUser({ username, password }) {
     try {
-      logger.info('User login attempt', { username, email });
-
-      const searchConditions = [];
-      if (username) searchConditions.push({ username });
-      if (email) searchConditions.push({ email });
-
-      const user = await User.findOne({ where: { [Op.or]: searchConditions } });
+      // Find user by username or email
+      const user = await db.User.findOne({
+        where: {
+          [Op.or]: [
+            { username: username.toLowerCase() },
+            { email: username.toLowerCase() }
+          ]
+        }
+      });
 
       if (!user) {
-        throw new Error(ERROR_MESSAGES.USER_NOT_FOUND || 'User not found');
+        throw new Error('Invalid credentials');
       }
 
-      const isMatch = await bcrypt.compare(password, user.password_hash);
-
-      if (!isMatch) {
-        throw new Error(ERROR_MESSAGES.INVALID_PASSWORD || 'Invalid password');
+      if (!user.is_active) {
+        throw new Error('Account is deactivated');
       }
 
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password_hash);
+      if (!isValidPassword) {
+        throw new Error('Invalid credentials');
+      }
+
+      // Generate JWT token
       const token = jwt.sign(
-        { id: user.id, username: user.username, email: user.email },
-        config.auth?.jwtSecret || 'supersecretkey',
-        { expiresIn: config.auth?.jwtExpiresIn || '1h' }
+        { 
+          id: user.id, 
+          username: user.username, 
+          email: user.email,
+          is_admin: user.is_premium // Using premium as admin flag for now
+        },
+        config.jwt.secret,
+        { expiresIn: config.jwt.expiresIn }
       );
 
-      logger.info('Login successful', { userId: user.id });
+      // Update last login and last seen
+      await db.User.update(
+        { 
+          last_login: new Date(),
+          last_seen: new Date()
+        },
+        { where: { id: user.id } }
+      );
+
+      logger.info('User logged in successfully', { userId: user.id, username: user.username });
 
       return {
         token,
         user: {
           id: user.id,
           username: user.username,
-          email: user.email
+          email: user.email,
+          display_name: user.display_name,
+          rating_rapid: user.rating_rapid,
+          rating_blitz: user.rating_blitz,
+          rating_bullet: user.rating_bullet,
+          is_verified: user.is_verified,
+          is_premium: user.is_premium
         }
       };
     } catch (error) {
-      logger.error('Login failed', { error: error.message });
+      logger.error('Login failed', { error: error.message, username });
       throw error;
     }
   }
 
   /**
-   * Logs out a user (placeholder)
+   * Get user profile
    */
-  async logoutUser(_token) {
+  async getProfile(userId) {
     try {
-      logger.info('Logout called');
-      // Token invalidation logic would go here (e.g., blacklist)
-      return { message: 'Logout successful' };
+      const user = await db.User.findByPk(userId, {
+        attributes: { exclude: ['password_hash'] },
+        include: [{
+          model: db.UserPreferences,
+          as: 'preferences'
+        }]
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      return user;
     } catch (error) {
-      logger.error('Logout failed', { error: error.message });
+      logger.error('Failed to get profile', { error: error.message, userId });
       throw error;
     }
   }
 
   /**
-   * Requests password reset (placeholder)
+   * Request password reset
    */
   async requestPasswordReset(email) {
     try {
-      logger.info('Password reset request received', { email });
-
-      const user = await User.findOne({ where: { email } });
-
+      const user = await db.User.findOne({ 
+        where: { email: email.toLowerCase() } 
+      });
+      
       if (!user) {
-        throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND || 'Email not found');
+        // Don't reveal if email exists for security
+        return { message: 'If email exists, reset instructions have been sent' };
       }
 
-      // TODO: Generate reset token, save it to DB, and send email
-      logger.info('Password reset logic not implemented yet');
+      // Delete any existing reset tokens for this user
+      await db.ResetToken.destroy({
+        where: { 
+          user_id: user.id, 
+          token_type: 'password_reset' 
+        }
+      });
 
-      return { message: 'Password reset requested' };
+      // Generate reset token
+      const resetToken = uuidv4();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      await db.ResetToken.create({
+        user_id: user.id,
+        token: resetToken,
+        token_type: 'password_reset',
+        expires_at: expiresAt
+      });
+
+      // TODO: Send email with reset token
+      logger.info('Password reset requested', { userId: user.id, email });
+      
+      return { 
+        message: 'If email exists, reset instructions have been sent',
+        // In development, return token for testing
+        ...(process.env.NODE_ENV === 'development' && { resetToken })
+      };
     } catch (error) {
-      logger.error('Password reset request failed', { error: error.message });
+      logger.error('Password reset request failed', { error: error.message, email });
       throw error;
     }
   }
 
   /**
-   * Confirms password reset (placeholder)
+   * Confirm password reset
    */
   async confirmPasswordReset(resetToken, newPassword) {
+    const transaction = await db.sequelize.transaction();
+    
     try {
-      logger.info('Confirming password reset', { resetToken });
+      // Find valid reset token
+      const token = await db.ResetToken.findOne({
+        where: {
+          token: resetToken,
+          token_type: 'password_reset',
+          expires_at: { [Op.gt]: new Date() },
+          used_at: null
+        },
+        transaction
+      });
 
-      // TODO: Lookup reset token, validate expiry, reset password
-      // Example flow:
-      // 1. Find token in DB
-      // 2. Validate expiration
-      // 3. Hash new password
-      // 4. Update user
-      // 5. Delete reset token
+      if (!token) {
+        throw new Error('Invalid or expired reset token');
+      }
 
-      return { message: 'Password reset confirmed' };
+      // Hash new password
+      const password_hash = await bcrypt.hash(newPassword, 12);
+
+      // Update user password
+      await db.User.update(
+        { password_hash },
+        { where: { id: token.user_id }, transaction }
+      );
+
+      // Mark token as used
+      await db.ResetToken.update(
+        { used_at: new Date() },
+        { where: { id: token.id }, transaction }
+      );
+
+      await transaction.commit();
+      
+      logger.info('Password reset completed', { userId: token.user_id });
+      
+      return { message: 'Password reset successful' };
     } catch (error) {
+      await transaction.rollback();
       logger.error('Password reset confirmation failed', { error: error.message });
       throw error;
     }
   }
 
   /**
-   * Gets the current user's profile
+   * Logout user (for token blacklisting in the future)
    */
-  async getProfile(user) {
+  async logoutUser(token) {
     try {
-      logger.info('Fetching user profile', { userId: user.id });
-
-      const dbUser = await User.findByPk(user.id);
-
-      if (!dbUser) {
-        throw new Error(ERROR_MESSAGES.USER_NOT_FOUND || 'User not found');
-      }
-
-      return {
-        id: dbUser.id,
-        username: dbUser.username,
-        email: dbUser.email
-      };
+      // TODO: Implement token blacklisting if needed
+      logger.info('User logged out');
+      return { message: 'Logout successful' };
     } catch (error) {
-      logger.error('Fetching profile failed', { error: error.message });
+      logger.error('Logout failed', { error: error.message });
       throw error;
     }
   }
