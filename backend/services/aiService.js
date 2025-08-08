@@ -176,15 +176,12 @@ class AIService {
    * Make a move for the user in AI game
    */
   async makeUserMove(gameId, userId, moveData) {
-    const transaction = await db.sequelize.transaction();
-    
     try {
       const game = await db.Game.findByPk(gameId, {
         include: [{
           model: db.Player,
           as: 'players'
-        }],
-        transaction
+        }]
       });
 
       if (!game) {
@@ -212,11 +209,84 @@ class AIService {
         throw new Error('It is not your turn');
       }
 
-      // Make the move (reuse game service logic)
-      const gameService = require('./gameService');
-      const moveResult = await gameService.makeMove(gameId, userId, moveData);
+      // Make the move directly to avoid circular dependency
+      let move;
+      try {
+        move = chess.move(moveData.move);
+        if (!move) {
+          throw new Error('Invalid move');
+        }
+      } catch (err) {
+        throw new Error('Invalid move: ' + err.message);
+      }
 
-      await transaction.commit();
+      const moveNumber = Math.ceil((game.move_count + 1) / 2);
+
+      // Record user move
+      const dbMove = await db.Move.create({
+        game_id: gameId,
+        player_id: userPlayer.id,
+        move_number: moveNumber,
+        color: userPlayer.color,
+        san: move.san,
+        uci: `${move.from}${move.to}${move.promotion || ''}`,
+        from_square: move.from,
+        to_square: move.to,
+        piece: move.piece,
+        captured_piece: move.captured || null,
+        promotion_piece: move.promotion || null,
+        is_check: chess.isCheck(),
+        is_checkmate: chess.isCheckmate(),
+        is_castling: move.flags.includes('k') || move.flags.includes('q'),
+        is_en_passant: move.flags.includes('e'),
+        fen_after: chess.fen(),
+        time_spent_ms: moveData.time_spent_ms || 0
+      });
+
+      // Update game state
+      const updateData = {
+        current_fen: chess.fen(),
+        current_turn: chess.turn() === 'w' ? 'white' : 'black',
+        move_count: game.move_count + 1,
+        last_move_at: new Date()
+      };
+
+      // Check for game end
+      if (chess.isGameOver()) {
+        updateData.status = 'finished';
+        updateData.finished_at = new Date();
+        
+        if (chess.isCheckmate()) {
+          updateData.result = chess.turn() === 'w' ? 'black_wins' : 'white_wins';
+          updateData.result_reason = 'checkmate';
+        } else if (chess.isStalemate()) {
+          updateData.result = 'draw';
+          updateData.result_reason = 'stalemate';
+        } else if (chess.isDraw()) {
+          updateData.result = 'draw';
+          updateData.result_reason = 'insufficient_material';
+        }
+      }
+
+      await db.Game.update(updateData, {
+        where: { id: gameId }
+      });
+
+      const moveResult = {
+        move: {
+          id: dbMove.id,
+          san: move.san,
+          uci: dbMove.uci,
+          from_square: move.from,
+          to_square: move.to,
+          piece: move.piece,
+          captured_piece: move.captured,
+          promotion_piece: move.promotion,
+          is_check: chess.isCheck(),
+          is_checkmate: chess.isCheckmate(),
+          fen_after: chess.fen()
+        }
+      };
 
       // If game is still active and it's AI's turn, make AI move
       const updatedGame = await this.getAIGameState(gameId);
@@ -236,9 +306,21 @@ class AIService {
         }
       }
 
-      return moveResult;
+      // Format the response to match the expected structure
+      return {
+        userMove: {
+          san: moveResult.move.san,
+          uci: moveResult.move.uci,
+          piece: moveResult.move.piece,
+          from: moveResult.move.from_square,
+          to: moveResult.move.to_square,
+          captured: moveResult.move.captured_piece,
+          promotion: moveResult.move.promotion_piece
+        },
+        aiMove: null, // Will be set later when AI responds
+        gameState: moveResult.game
+      };
     } catch (error) {
-      await transaction.rollback();
       logger.error('Failed to make user move in AI game', { error: error.message, gameId, userId });
       throw error;
     }
@@ -495,8 +577,10 @@ class AIService {
       logger.info('Hint generated', { gameId, userId, hint: hintMove });
       
       return {
-        hint: hintMove,
-        message: 'Consider this move'
+        hint: {
+          move: hintMove,
+          message: 'Consider this move'
+        }
       };
     } catch (error) {
       logger.error('Failed to generate hint', { error: error.message, gameId, userId });
@@ -539,7 +623,11 @@ class AIService {
 
       logger.info('AI game ended', { gameId, userId });
       
-      return { message: 'Game ended successfully' };
+      return { 
+        id: gameId,
+        status: 'ended',
+        message: 'Game ended successfully' 
+      };
     } catch (error) {
       logger.error('Failed to end AI game', { error: error.message, gameId, userId });
       throw error;

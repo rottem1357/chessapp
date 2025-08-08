@@ -90,6 +90,14 @@ async function getAIGameState(req, res) {
     const { gameId } = req.params;
     const userId = req.user.id;
 
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(gameId)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        formatResponse(false, null, 'Invalid game ID format', 'VALIDATION_001')
+      );
+    }
+
     logger.info('AI game state request', { 
       gameId, 
       userId
@@ -133,6 +141,14 @@ async function makeAIMove(req, res) {
     const userId = req.user.id;
     const { move, time_spent_ms } = req.body;
 
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(gameId)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        formatResponse(false, null, 'Invalid game ID format', 'VALIDATION_001')
+      );
+    }
+
     logger.info('AI game move request', { 
       gameId, 
       userId, 
@@ -150,7 +166,7 @@ async function makeAIMove(req, res) {
     logger.info('Move made in AI game successfully', { 
       gameId, 
       userId, 
-      move: result.move.san
+      move: result.userMove.san
     });
 
     res.status(HTTP_STATUS.OK).json(
@@ -182,6 +198,14 @@ async function getHint(req, res) {
   try {
     const { gameId } = req.params;
     const userId = req.user.id;
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(gameId)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        formatResponse(false, null, 'Invalid game ID format', 'VALIDATION_001')
+      );
+    }
 
     logger.info('AI hint request', { 
       gameId, 
@@ -224,6 +248,14 @@ async function endAIGame(req, res) {
   try {
     const { gameId } = req.params;
     const userId = req.user.id;
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(gameId)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        formatResponse(false, { errors: ['Invalid game ID format'] }, 'Invalid game ID format', 'VALIDATION_001')
+      );
+    }
 
     logger.info('AI game end request', { 
       gameId, 
