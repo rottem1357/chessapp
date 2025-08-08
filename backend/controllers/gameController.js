@@ -1,7 +1,7 @@
 // controllers/gameController.js
 const gameService = require('../services/gameService');
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatSuccessResponse, formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
 /**
@@ -35,7 +35,7 @@ async function getGames(req, res) {
     const result = await gameService.getGames(filters, parseInt(page), parseInt(limit));
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Games retrieved successfully')
+      formatResponse(true, result, 'Games retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get games list', { 
@@ -44,7 +44,7 @@ async function getGames(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'GAMES_FETCH_FAILED')
+      formatResponse(false, null, error.message, 'GAMES_FETCH_FAILED')
     );
   }
 }
@@ -72,7 +72,7 @@ async function createGame(req, res) {
     });
 
     res.status(HTTP_STATUS.CREATED).json(
-      formatSuccessResponse(result, 'Game created successfully')
+      formatResponse(true, result, 'Game created successfully')
     );
   } catch (error) {
     logger.error('Failed to create game', { 
@@ -82,7 +82,7 @@ async function createGame(req, res) {
     });
 
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse(error.message, 'GAME_CREATION_FAILED')
+      formatResponse(false, null, error.message, 'GAME_CREATION_FAILED')
     );
   }
 }
@@ -104,12 +104,12 @@ async function getGameDetails(req, res) {
 
     if (!result) {
       return res.status(HTTP_STATUS.NOT_FOUND).json(
-        formatErrorResponse('Game not found', 'GAME_NOT_FOUND')
+        formatResponse(false, null, 'Game not found', 'GAME_NOT_FOUND')
       );
     }
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Game details retrieved successfully')
+      formatResponse(true, result, 'Game details retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get game details', { 
@@ -118,7 +118,7 @@ async function getGameDetails(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'GAME_DETAILS_FAILED')
+      formatResponse(false, null, error.message, 'GAME_DETAILS_FAILED')
     );
   }
 }
@@ -146,7 +146,7 @@ async function joinGame(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Joined game successfully')
+      formatResponse(true, result, 'Joined game successfully')
     );
   } catch (error) {
     logger.error('Failed to join game', { 
@@ -161,7 +161,7 @@ async function joinGame(req, res) {
       HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'GAME_JOIN_FAILED')
+      formatResponse(false, null, error.message, 'GAME_JOIN_FAILED')
     );
   }
 }
@@ -197,7 +197,7 @@ async function makeMove(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Move made successfully')
+      formatResponse(true, result, 'Move made successfully')
     );
   } catch (error) {
     logger.error('Failed to make move', { 
@@ -213,7 +213,7 @@ async function makeMove(req, res) {
       HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'MOVE_FAILED')
+      formatResponse(false, null, error.message, 'MOVE_FAILED')
     );
   }
 }
@@ -233,7 +233,7 @@ async function getMoveHistory(req, res) {
     const result = await gameService.getMoveHistory(gameId);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Move history retrieved successfully')
+      formatResponse(true, result, 'Move history retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get move history', { 
@@ -245,7 +245,7 @@ async function getMoveHistory(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'MOVE_HISTORY_FAILED')
+      formatResponse(false, null, error.message, 'MOVE_HISTORY_FAILED')
     );
   }
 }
@@ -271,7 +271,7 @@ async function resignGame(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Resigned from game successfully')
+      formatResponse(true, result, 'Resigned from game successfully')
     );
   } catch (error) {
     logger.error('Failed to resign from game', { 
@@ -286,7 +286,7 @@ async function resignGame(req, res) {
       HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'RESIGNATION_FAILED')
+      formatResponse(false, null, error.message, 'RESIGNATION_FAILED')
     );
   }
 }
@@ -312,7 +312,7 @@ async function offerDraw(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Draw offer sent successfully')
+      formatResponse(true, result, 'Draw offer sent successfully')
     );
   } catch (error) {
     logger.error('Failed to offer draw', { 
@@ -327,7 +327,7 @@ async function offerDraw(req, res) {
       HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'DRAW_OFFER_FAILED')
+      formatResponse(false, null, error.message, 'DRAW_OFFER_FAILED')
     );
   }
 }
@@ -360,7 +360,7 @@ async function respondToDraw(req, res) {
       'Draw declined successfully';
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, message)
+      formatResponse(true, result, message)
     );
   } catch (error) {
     logger.error('Failed to respond to draw', { 
@@ -376,7 +376,7 @@ async function respondToDraw(req, res) {
       HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'DRAW_RESPONSE_FAILED')
+      formatResponse(false, null, error.message, 'DRAW_RESPONSE_FAILED')
     );
   }
 }
@@ -400,7 +400,7 @@ async function getGameOpening(req, res) {
       'No opening detected for this game yet';
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, message)
+      formatResponse(true, result, message)
     );
   } catch (error) {
     logger.error('Failed to get game opening', { 
@@ -412,7 +412,7 @@ async function getGameOpening(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'OPENING_FETCH_FAILED')
+      formatResponse(false, null, error.message, 'OPENING_FETCH_FAILED')
     );
   }
 }
@@ -437,7 +437,7 @@ async function getGameAnalysis(req, res) {
     // 3. If no analysis exists, queue for engine analysis
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Game analysis not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Game analysis not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get game analysis', { 
@@ -447,7 +447,7 @@ async function getGameAnalysis(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'ANALYSIS_FAILED')
+      formatResponse(false, null, error.message, 'ANALYSIS_FAILED')
     );
   }
 }
@@ -476,7 +476,7 @@ async function requestAnalysis(req, res) {
     // 4. Return job status
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Analysis request not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Analysis request not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to request analysis', { 
@@ -486,7 +486,7 @@ async function requestAnalysis(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'ANALYSIS_REQUEST_FAILED')
+      formatResponse(false, null, error.message, 'ANALYSIS_REQUEST_FAILED')
     );
   }
 }
@@ -512,7 +512,7 @@ async function getUserGames(req, res) {
     // TODO: Implement getUserGames in gameService
     // For now, return not implemented
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('User games history not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'User games history not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get user games', { 
@@ -521,7 +521,7 @@ async function getUserGames(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'USER_GAMES_FAILED')
+      formatResponse(false, null, error.message, 'USER_GAMES_FAILED')
     );
   }
 }
@@ -546,7 +546,7 @@ async function exportGamePGN(req, res) {
     // 3. Return as downloadable file
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('PGN export not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'PGN export not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to export PGN', { 
@@ -555,7 +555,7 @@ async function exportGamePGN(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'PGN_EXPORT_FAILED')
+      formatResponse(false, null, error.message, 'PGN_EXPORT_FAILED')
     );
   }
 }
@@ -580,7 +580,7 @@ async function spectateGame(req, res) {
     // 3. Return game state for spectating
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Game spectating not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Game spectating not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to spectate game', { 
@@ -590,7 +590,7 @@ async function spectateGame(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'SPECTATE_FAILED')
+      formatResponse(false, null, error.message, 'SPECTATE_FAILED')
     );
   }
 }

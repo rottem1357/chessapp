@@ -2,31 +2,27 @@
 const { v4: uuidv4 } = require('uuid');
 
 /**
- * Format success response
+ * Unified response formatter
  */
-function formatSuccessResponse(data, message = 'Success', meta = {}) {
-  return {
-    success: true,
+function formatResponse(success, data = null, message = '', errorCode = null, meta = null) {
+  const response = {
+    success,
     message,
     data,
-    meta,
-    timestamp: new Date().toISOString()
-  };
-}
-
-/**
- * Format error response
- */
-function formatErrorResponse(message, code = 'ERROR', details = null) {
-  const response = {
-    success: false,
-    error: message,
-    code,
     timestamp: new Date().toISOString()
   };
 
-  if (details && process.env.NODE_ENV === 'development') {
-    response.details = details;
+  if (!success && errorCode) {
+    response.errorCode = errorCode;
+  }
+
+  if (meta) {
+    response.meta = meta;
+  }
+
+  if (process.env.NODE_ENV === 'development' && !success && data?.stack) {
+    response.debug = { stack: data.stack };
+    delete response.data;
   }
 
   return response;
@@ -256,46 +252,46 @@ function calculatePagination(page, limit, total) {
 }
 
 /**
- * Convert chess piece notation
+ * Sleep function
  */
-function convertPieceNotation(piece, format = 'symbol') {
-  const pieceMap = {
-    'p': { name: 'pawn', symbol: '♟', unicode: '\u265F' },
-    'r': { name: 'rook', symbol: '♜', unicode: '\u265C' },
-    'n': { name: 'knight', symbol: '♞', unicode: '\u265E' },
-    'b': { name: 'bishop', symbol: '♝', unicode: '\u265D' },
-    'q': { name: 'queen', symbol: '♛', unicode: '\u265B' },
-    'k': { name: 'king', symbol: '♚', unicode: '\u265A' }
-  };
-  
-  if (!piece || !pieceMap[piece.toLowerCase()]) {
-    return null;
-  }
-  
-  const pieceInfo = pieceMap[piece.toLowerCase()];
-  return pieceInfo[format] || piece;
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
  * Calculate ELO rating change
+ * @param {number} playerRating - Current player rating
+ * @param {number} opponentRating - Opponent rating
+ * @param {number} score - Game result (1 = win, 0.5 = draw, 0 = loss)
+ * @param {number} kFactor - K-factor for rating calculation
+ * @returns {number} Rating change
  */
-function calculateEloChange(playerRating, opponentRating, score, kFactor = 32) {
+function calculateEloChange(playerRating, opponentRating, score, kFactor = null) {
+  if (!kFactor) {
+    kFactor = getKFactor(playerRating);
+  }
+  
   const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 400));
-  return Math.round(kFactor * (score - expectedScore));
+  const ratingChange = Math.round(kFactor * (score - expectedScore));
+  
+  return ratingChange;
 }
 
 /**
- * Get K-factor for ELO calculation based on rating and games played
+ * Get K-factor based on player rating
+ * @param {number} rating - Player rating
+ * @returns {number} K-factor
  */
-function getKFactor(rating, gamesPlayed) {
-  if (gamesPlayed < 30) return 40;
-  if (rating < 2100) return 32;
-  if (rating < 2400) return 24;
-  return 16;
+function getKFactor(rating) {
+  if (rating < 1400) return 40;
+  if (rating < 2100) return 20;
+  return 10;
 }
 
 /**
  * Validate UUID format
+ * @param {string} uuid - UUID to validate
+ * @returns {boolean} True if valid UUID
  */
 function isValidUUID(uuid) {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -303,12 +299,14 @@ function isValidUUID(uuid) {
 }
 
 /**
- * Convert milliseconds to readable time format
+ * Convert milliseconds to time format
+ * @param {number} ms - Milliseconds
+ * @returns {string} Formatted time
  */
 function msToTime(ms) {
-  const seconds = Math.floor((ms / 1000) % 60);
-  const minutes = Math.floor((ms / (1000 * 60)) % 60);
-  const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+  const hours = Math.floor(ms / 3600000);
+  const minutes = Math.floor((ms % 3600000) / 60000);
+  const seconds = Math.floor((ms % 60000) / 1000);
   
   if (hours > 0) {
     return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
@@ -317,19 +315,20 @@ function msToTime(ms) {
 }
 
 /**
- * Get user's display name (fallback to username)
+ * Get user display name
+ * @param {Object} user - User object
+ * @returns {string} Display name
  */
 function getUserDisplayName(user) {
-  if (!user) return 'Unknown';
   return user.display_name || user.username || 'Anonymous';
 }
 
 /**
- * Escape HTML entities
+ * Escape HTML characters
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text
  */
 function escapeHtml(text) {
-  if (!text) return '';
-  
   const map = {
     '&': '&amp;',
     '<': '&lt;',
@@ -337,62 +336,25 @@ function escapeHtml(text) {
     '"': '&quot;',
     "'": '&#039;'
   };
-  
-  return text.replace(/[&<>"']/g, m => map[m]);
+  return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 
 /**
- * Generate slug from string
- */
-function generateSlug(text) {
-  if (!text) return '';
-  
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-/**
- * Check if string contains only alphanumeric characters
+ * Check if string is alphanumeric
+ * @param {string} str - String to check
+ * @returns {boolean} True if alphanumeric
  */
 function isAlphanumeric(str) {
-  if (!str) return false;
   return /^[a-zA-Z0-9]+$/.test(str);
 }
 
 /**
- * Truncate string with ellipsis
- */
-function truncateString(str, maxLength, suffix = '...') {
-  if (!str || str.length <= maxLength) return str;
-  return str.substring(0, maxLength - suffix.length) + suffix;
-}
-
-/**
- * Convert object to query string
- */
-function objectToQueryString(obj) {
-  if (!obj || typeof obj !== 'object') return '';
-  
-  const params = new URLSearchParams();
-  
-  Object.keys(obj).forEach(key => {
-    if (obj[key] !== null && obj[key] !== undefined) {
-      params.append(key, obj[key]);
-    }
-  });
-  
-  return params.toString();
-}
-
-/**
- * Check if value is empty (null, undefined, empty string, empty array, empty object)
+ * Check if value is empty
+ * @param {any} value - Value to check
+ * @returns {boolean} True if empty
  */
 function isEmpty(value) {
-  if (value === null || value === undefined) return true;
+  if (value == null) return true;
   if (typeof value === 'string') return value.trim() === '';
   if (Array.isArray(value)) return value.length === 0;
   if (typeof value === 'object') return Object.keys(value).length === 0;
@@ -400,15 +362,9 @@ function isEmpty(value) {
 }
 
 /**
- * Get random element from array
- */
-function getRandomElement(array) {
-  if (!Array.isArray(array) || array.length === 0) return null;
-  return array[Math.floor(Math.random() * array.length)];
-}
-
-/**
- * Shuffle array using Fisher-Yates algorithm
+ * Shuffle array
+ * @param {Array} array - Array to shuffle
+ * @returns {Array} Shuffled array
  */
 function shuffleArray(array) {
   const shuffled = [...array];
@@ -421,28 +377,21 @@ function shuffleArray(array) {
 
 /**
  * Group array by key
+ * @param {Array} array - Array to group
+ * @param {string} key - Key to group by
+ * @returns {Object} Grouped object
  */
 function groupBy(array, key) {
   return array.reduce((groups, item) => {
-    const groupKey = item[key];
-    if (!groups[groupKey]) {
-      groups[groupKey] = [];
-    }
-    groups[groupKey].push(item);
+    const group = item[key];
+    groups[group] = groups[group] || [];
+    groups[group].push(item);
     return groups;
   }, {});
 }
 
-/**
- * Sleep function
- */
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 module.exports = {
-  formatSuccessResponse,
-  formatErrorResponse,
+  formatResponse,
   validateRequired,
   sanitizePlayerName,
   sanitizeChatMessage,
@@ -459,19 +408,14 @@ module.exports = {
   deepClone,
   sanitizeUserData,
   calculatePagination,
-  convertPieceNotation,
   calculateEloChange,
   getKFactor,
   isValidUUID,
   msToTime,
   getUserDisplayName,
   escapeHtml,
-  generateSlug,
   isAlphanumeric,
-  truncateString,
-  objectToQueryString,
   isEmpty,
-  getRandomElement,
   shuffleArray,
   groupBy,
   sleep

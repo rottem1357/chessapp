@@ -1,7 +1,7 @@
 // controllers/authController.js
 const authService = require('../services/authService');
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatSuccessResponse, formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
 /**
@@ -32,7 +32,7 @@ async function register(req, res) {
     });
 
     res.status(HTTP_STATUS.CREATED).json(
-      formatSuccessResponse(result, 'User registered successfully')
+      formatResponse(true, result, 'User registered successfully')
     );
   } catch (error) {
     logger.error('Registration failed', { 
@@ -45,7 +45,7 @@ async function register(req, res) {
       HTTP_STATUS.CONFLICT : HTTP_STATUS.BAD_REQUEST;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'REGISTRATION_FAILED')
+      formatResponse(false, null, error.message, 'REGISTRATION_FAILED')
     );
   }
 }
@@ -71,7 +71,7 @@ async function login(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Login successful')
+      formatResponse(true, result, 'Login successful')
     );
   } catch (error) {
     logger.error('Login failed', { 
@@ -84,7 +84,7 @@ async function login(req, res) {
       HTTP_STATUS.UNAUTHORIZED : HTTP_STATUS.BAD_REQUEST;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'LOGIN_FAILED')
+      formatResponse(false, null, error.message, 'LOGIN_FAILED')
     );
   }
 }
@@ -108,7 +108,7 @@ async function logout(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Logout successful')
+      formatResponse(true, result, 'Logout successful')
     );
   } catch (error) {
     logger.error('Logout failed', { 
@@ -117,7 +117,7 @@ async function logout(req, res) {
     });
 
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse(error.message, 'LOGOUT_FAILED')
+      formatResponse(false, null, error.message, 'LOGOUT_FAILED')
     );
   }
 }
@@ -134,7 +134,7 @@ async function getProfile(req, res) {
     const result = await authService.getProfile(userId);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Profile retrieved successfully')
+      formatResponse(true, result, 'Profile retrieved successfully')
     );
   } catch (error) {
     logger.error('Profile fetch failed', { 
@@ -146,7 +146,7 @@ async function getProfile(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'PROFILE_FETCH_FAILED')
+      formatResponse(false, null, error.message, 'PROFILE_FETCH_FAILED')
     );
   }
 }
@@ -167,7 +167,7 @@ async function requestPasswordReset(req, res) {
 
     // Always return success to prevent email enumeration
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Password reset instructions sent')
+      formatResponse(true, result, 'Password reset instructions sent')
     );
   } catch (error) {
     logger.error('Password reset request failed', { 
@@ -177,7 +177,7 @@ async function requestPasswordReset(req, res) {
 
     // Still return success to prevent email enumeration
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(
+      formatResponse(true, 
         { message: 'If email exists, reset instructions have been sent' },
         'Password reset instructions sent'
       )
@@ -202,7 +202,7 @@ async function confirmPasswordReset(req, res) {
     logger.info('Password reset completed successfully');
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Password reset successful')
+      formatResponse(true, result, 'Password reset successful')
     );
   } catch (error) {
     logger.error('Password reset confirmation failed', { 
@@ -214,7 +214,7 @@ async function confirmPasswordReset(req, res) {
       HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'PASSWORD_RESET_FAILED')
+      formatResponse(false, null, error.message, 'PASSWORD_RESET_FAILED')
     );
   }
 }
@@ -226,7 +226,7 @@ async function refreshToken(req, res) {
   try {
     // TODO: Implement token refresh logic
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Token refresh not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Token refresh not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Token refresh failed', { 
@@ -235,7 +235,7 @@ async function refreshToken(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'TOKEN_REFRESH_FAILED')
+      formatResponse(false, null, error.message, 'TOKEN_REFRESH_FAILED')
     );
   }
 }
@@ -254,7 +254,7 @@ async function verifyEmail(req, res) {
     });
 
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Email verification not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Email verification not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Email verification failed', { 
@@ -262,7 +262,7 @@ async function verifyEmail(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'EMAIL_VERIFICATION_FAILED')
+      formatResponse(false, null, error.message, 'EMAIL_VERIFICATION_FAILED')
     );
   }
 }
@@ -279,7 +279,7 @@ async function changePassword(req, res) {
 
     // TODO: Implement password change logic in authService
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Password change not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Password change not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Password change failed', { 
@@ -288,7 +288,7 @@ async function changePassword(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'PASSWORD_CHANGE_FAILED')
+      formatResponse(false, null, error.message, 'PASSWORD_CHANGE_FAILED')
     );
   }
 }

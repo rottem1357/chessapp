@@ -2,7 +2,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
 /**
@@ -15,14 +15,14 @@ const verifyToken = (req, res, next) => {
     
     if (!authHeader) {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json(
-        formatErrorResponse('Access token is required', 'AUTH_001')
+        formatResponse(false, null, 'Access token is required', 'AUTH_001')
       );
     }
 
     // Check if token format is correct (Bearer token)
     if (!authHeader.startsWith('Bearer ')) {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json(
-        formatErrorResponse('Invalid token format. Use Bearer token', 'AUTH_001')
+        formatResponse(false, null, 'Invalid token format. Use Bearer token', 'AUTH_001')
       );
     }
 
@@ -31,7 +31,7 @@ const verifyToken = (req, res, next) => {
 
     if (!token) {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json(
-        formatErrorResponse('Access token is required', 'AUTH_001')
+        formatResponse(false, null, 'Access token is required', 'AUTH_001')
       );
     }
 
@@ -46,15 +46,15 @@ const verifyToken = (req, res, next) => {
 
         if (err.name === 'TokenExpiredError') {
           return res.status(HTTP_STATUS.UNAUTHORIZED).json(
-            formatErrorResponse('Token has expired', 'AUTH_002')
+            formatResponse(false, null, 'Token has expired', 'AUTH_002')
           );
         } else if (err.name === 'JsonWebTokenError') {
           return res.status(HTTP_STATUS.UNAUTHORIZED).json(
-            formatErrorResponse('Invalid token', 'AUTH_001')
+            formatResponse(false, null, 'Invalid token', 'AUTH_001')
           );
         } else {
           return res.status(HTTP_STATUS.UNAUTHORIZED).json(
-            formatErrorResponse('Token verification failed', 'AUTH_001')
+            formatResponse(false, null, 'Token verification failed', 'AUTH_001')
           );
         }
       }
@@ -81,7 +81,7 @@ const verifyToken = (req, res, next) => {
     });
 
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse('Authentication error', 'AUTH_001')
+      formatResponse(false, null, 'Authentication error', 'AUTH_001')
     );
   }
 };

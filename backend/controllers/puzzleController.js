@@ -1,7 +1,7 @@
 // controllers/puzzleController.js
 const puzzleService = require('../services/puzzleService');
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatSuccessResponse, formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
 /**
@@ -27,7 +27,7 @@ async function getRandomPuzzle(req, res) {
     const result = await puzzleService.getRandomPuzzle(filters, userId);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Random puzzle retrieved successfully')
+      formatResponse(true, result, 'Random puzzle retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get random puzzle', { 
@@ -40,7 +40,7 @@ async function getRandomPuzzle(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'RANDOM_PUZZLE_FAILED')
+      formatResponse(false, null, error.message, 'RANDOM_PUZZLE_FAILED')
     );
   }
 }
@@ -61,7 +61,7 @@ async function getPuzzleById(req, res) {
     const result = await puzzleService.getPuzzleById(puzzleId, userId);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Puzzle retrieved successfully')
+      formatResponse(true, result, 'Puzzle retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get puzzle by ID', { 
@@ -74,7 +74,7 @@ async function getPuzzleById(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'PUZZLE_FETCH_FAILED')
+      formatResponse(false, null, error.message, 'PUZZLE_FETCH_FAILED')
     );
   }
 }
@@ -114,7 +114,7 @@ async function submitAttempt(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, message)
+      formatResponse(true, result, message)
     );
   } catch (error) {
     logger.error('Failed to submit puzzle attempt', { 
@@ -128,7 +128,7 @@ async function submitAttempt(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.BAD_REQUEST;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'PUZZLE_ATTEMPT_FAILED')
+      formatResponse(false, null, error.message, 'PUZZLE_ATTEMPT_FAILED')
     );
   }
 }
@@ -145,7 +145,7 @@ async function getCategories(req, res) {
     const result = await puzzleService.getCategories();
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Puzzle categories retrieved successfully')
+      formatResponse(true, result, 'Puzzle categories retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get puzzle categories', { 
@@ -153,7 +153,7 @@ async function getCategories(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'CATEGORIES_FETCH_FAILED')
+      formatResponse(false, null, error.message, 'CATEGORIES_FETCH_FAILED')
     );
   }
 }
@@ -174,7 +174,7 @@ async function getRecentAttempts(req, res) {
     const result = await puzzleService.getUserRecentAttempts(userId, parseInt(limit));
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Recent attempts retrieved successfully')
+      formatResponse(true, result, 'Recent attempts retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get recent attempts', { 
@@ -183,7 +183,7 @@ async function getRecentAttempts(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'RECENT_ATTEMPTS_FAILED')
+      formatResponse(false, null, error.message, 'RECENT_ATTEMPTS_FAILED')
     );
   }
 }
@@ -216,7 +216,7 @@ async function getPuzzlesByDifficulty(req, res) {
     );
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Puzzles retrieved successfully')
+      formatResponse(true, result, 'Puzzles retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get puzzles by difficulty', { 
@@ -225,7 +225,7 @@ async function getPuzzlesByDifficulty(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'DIFFICULTY_PUZZLES_FAILED')
+      formatResponse(false, null, error.message, 'DIFFICULTY_PUZZLES_FAILED')
     );
   }
 }
@@ -250,7 +250,7 @@ async function getDailyPuzzle(req, res) {
     // - Provide leaderboard for daily puzzle
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Daily puzzle not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Daily puzzle not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get daily puzzle', { 
@@ -259,7 +259,7 @@ async function getDailyPuzzle(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'DAILY_PUZZLE_FAILED')
+      formatResponse(false, null, error.message, 'DAILY_PUZZLE_FAILED')
     );
   }
 }
@@ -281,7 +281,7 @@ async function getPuzzleStreak(req, res) {
     // - Streak rewards/achievements
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Puzzle streak not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Puzzle streak not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get puzzle streak', { 
@@ -290,7 +290,7 @@ async function getPuzzleStreak(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'PUZZLE_STREAK_FAILED')
+      formatResponse(false, null, error.message, 'PUZZLE_STREAK_FAILED')
     );
   }
 }
@@ -316,7 +316,7 @@ async function getPuzzleRecommendations(req, res) {
     // - Preferred difficulty progression
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Puzzle recommendations not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Puzzle recommendations not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get puzzle recommendations', { 
@@ -325,7 +325,7 @@ async function getPuzzleRecommendations(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'PUZZLE_RECOMMENDATIONS_FAILED')
+      formatResponse(false, null, error.message, 'PUZZLE_RECOMMENDATIONS_FAILED')
     );
   }
 }
@@ -353,7 +353,7 @@ async function createPuzzleSet(req, res) {
     // - Rate and review puzzle sets
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Custom puzzle sets not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Custom puzzle sets not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to create puzzle set', { 
@@ -362,7 +362,7 @@ async function createPuzzleSet(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'PUZZLE_SET_CREATION_FAILED')
+      formatResponse(false, null, error.message, 'PUZZLE_SET_CREATION_FAILED')
     );
   }
 }
@@ -390,7 +390,7 @@ async function reportPuzzleIssue(req, res) {
     // - Inappropriate difficulty rating
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Puzzle issue reporting not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Puzzle issue reporting not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to report puzzle issue', { 
@@ -400,7 +400,7 @@ async function reportPuzzleIssue(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'PUZZLE_REPORT_FAILED')
+      formatResponse(false, null, error.message, 'PUZZLE_REPORT_FAILED')
     );
   }
 }

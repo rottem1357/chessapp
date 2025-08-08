@@ -1,6 +1,6 @@
 // middleware/verifyAdmin.js
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
 /**
@@ -17,7 +17,7 @@ const verifyAdmin = (req, res, next) => {
       });
       
       return res.status(HTTP_STATUS.UNAUTHORIZED).json(
-        formatErrorResponse('Authentication required for admin access', 'AUTH_003')
+        formatResponse(false, null, 'Authentication required for admin access', 'AUTH_003')
       );
     }
 
@@ -31,7 +31,7 @@ const verifyAdmin = (req, res, next) => {
       });
       
       return res.status(HTTP_STATUS.FORBIDDEN).json(
-        formatErrorResponse('Admin privileges required', 'AUTH_003')
+        formatResponse(false, null, 'Admin privileges required', 'AUTH_003')
       );
     }
 
@@ -51,7 +51,7 @@ const verifyAdmin = (req, res, next) => {
     });
 
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse('Admin verification error', 'AUTH_003')
+      formatResponse(false, null, 'Admin verification error', 'AUTH_003')
     );
   }
 };

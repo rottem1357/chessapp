@@ -1,7 +1,7 @@
 // controllers/aiController.js
 const aiService = require('../services/aiService');
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatSuccessResponse, formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
 /**
@@ -17,7 +17,7 @@ async function getDifficulties(req, res) {
     const result = aiService.getDifficulties();
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'AI difficulties retrieved successfully')
+      formatResponse(true, result, 'AI difficulties retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get AI difficulties', { 
@@ -25,7 +25,7 @@ async function getDifficulties(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'AI_DIFFICULTIES_FAILED')
+      formatResponse(false, null, error.message, 'AI_DIFFICULTIES_FAILED')
     );
   }
 }
@@ -62,7 +62,7 @@ async function createAIGame(req, res) {
     });
 
     res.status(HTTP_STATUS.CREATED).json(
-      formatSuccessResponse(result, 'AI game created successfully')
+      formatResponse(true, result, 'AI game created successfully')
     );
   } catch (error) {
     logger.error('Failed to create AI game', { 
@@ -77,7 +77,7 @@ async function createAIGame(req, res) {
       HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'AI_GAME_CREATION_FAILED')
+      formatResponse(false, null, error.message, 'AI_GAME_CREATION_FAILED')
     );
   }
 }
@@ -101,12 +101,12 @@ async function getAIGameState(req, res) {
     const isPlayerInGame = result.players.some(player => player.user_id === userId);
     if (!isPlayerInGame) {
       return res.status(HTTP_STATUS.FORBIDDEN).json(
-        formatErrorResponse('You are not a player in this game', 'ACCESS_DENIED')
+        formatResponse(false, null, 'You are not a player in this game', 'ACCESS_DENIED')
       );
     }
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'AI game state retrieved successfully')
+      formatResponse(true, result, 'AI game state retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get AI game state', { 
@@ -119,7 +119,7 @@ async function getAIGameState(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'AI_GAME_STATE_FAILED')
+      formatResponse(false, null, error.message, 'AI_GAME_STATE_FAILED')
     );
   }
 }
@@ -154,7 +154,7 @@ async function makeAIMove(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Move made successfully')
+      formatResponse(true, result, 'Move made successfully')
     );
   } catch (error) {
     logger.error('Failed to make move in AI game', { 
@@ -170,7 +170,7 @@ async function makeAIMove(req, res) {
       HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'AI_MOVE_FAILED')
+      formatResponse(false, null, error.message, 'AI_MOVE_FAILED')
     );
   }
 }
@@ -197,7 +197,7 @@ async function getHint(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Hint generated successfully')
+      formatResponse(true, result, 'Hint generated successfully')
     );
   } catch (error) {
     logger.error('Failed to get AI hint', { 
@@ -212,7 +212,7 @@ async function getHint(req, res) {
       HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'AI_HINT_FAILED')
+      formatResponse(false, null, error.message, 'AI_HINT_FAILED')
     );
   }
 }
@@ -238,7 +238,7 @@ async function endAIGame(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'AI game ended successfully')
+      formatResponse(true, result, 'AI game ended successfully')
     );
   } catch (error) {
     logger.error('Failed to end AI game', { 
@@ -253,7 +253,7 @@ async function endAIGame(req, res) {
       HTTP_STATUS.FORBIDDEN : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'AI_GAME_END_FAILED')
+      formatResponse(false, null, error.message, 'AI_GAME_END_FAILED')
     );
   }
 }
@@ -275,7 +275,7 @@ async function getAIGameStats(req, res) {
     // - Improvement over time
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('AI game statistics not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'AI game statistics not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get AI game stats', { 
@@ -284,7 +284,7 @@ async function getAIGameStats(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'AI_STATS_FAILED')
+      formatResponse(false, null, error.message, 'AI_STATS_FAILED')
     );
   }
 }
@@ -311,7 +311,7 @@ async function getPositionEvaluation(req, res) {
     // 3. Return evaluation score and best moves
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Position evaluation not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Position evaluation not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to evaluate position', { 
@@ -321,7 +321,7 @@ async function getPositionEvaluation(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'POSITION_EVALUATION_FAILED')
+      formatResponse(false, null, error.message, 'POSITION_EVALUATION_FAILED')
     );
   }
 }
@@ -345,7 +345,7 @@ async function adjustAIDifficulty(req, res) {
     // This might be allowed in casual games
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('AI difficulty adjustment not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'AI difficulty adjustment not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to adjust AI difficulty', { 
@@ -355,7 +355,7 @@ async function adjustAIDifficulty(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'AI_ADJUSTMENT_FAILED')
+      formatResponse(false, null, error.message, 'AI_ADJUSTMENT_FAILED')
     );
   }
 }
@@ -376,7 +376,7 @@ async function getTrainingRecommendations(req, res) {
     // - Recommend specific training exercises
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Training recommendations not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Training recommendations not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get training recommendations', { 
@@ -385,7 +385,7 @@ async function getTrainingRecommendations(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'TRAINING_RECOMMENDATIONS_FAILED')
+      formatResponse(false, null, error.message, 'TRAINING_RECOMMENDATIONS_FAILED')
     );
   }
 }

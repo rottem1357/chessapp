@@ -1,6 +1,5 @@
 const request = require('supertest');
-const app = require('../../server');
-const { server } = require('../../server');
+const { app } = require('../../server');
 const {
   createTestUser,
   createTestUsers,
@@ -24,7 +23,7 @@ describe('User Endpoints', () => {
         email: 'search2@example.com'
       });
       await createTestUser({
-      const response = await request(server)
+        username: 'differentuser',
         display_name: 'Different User',
         email: 'different@example.com'
       });
@@ -33,7 +32,7 @@ describe('User Endpoints', () => {
     it('should search users by username', async () => {
       const response = await request(app)
         .get('/api/users/search?q=search')
-      const response = await request(server)
+        .expect(200);
 
       expectPaginatedResponse(response);
       expect(response.body.data.items).toHaveLength(2);
@@ -42,7 +41,7 @@ describe('User Endpoints', () => {
     it('should search users with pagination', async () => {
       const response = await request(app)
         .get('/api/users/search?q=search&limit=1')
-      const response = await request(server)
+        .expect(200);
 
       expectPaginatedResponse(response);
       expect(response.body.data.items).toHaveLength(1);
@@ -50,7 +49,7 @@ describe('User Endpoints', () => {
 
     it('should fail with short search query', async () => {
       const response = await request(app)
-      const response = await request(server)
+        .get('/api/users/search?q=short')
         .expect(400);
 
       expectErrorResponse(response, 'VALIDATION_001');
@@ -71,7 +70,7 @@ describe('User Endpoints', () => {
     beforeEach(async () => {
       user = await createTestUser({
         username: 'profileuser',
-      const response = await request(server)
+      const response = await request(app)
         bio: 'Test user bio',
         country: 'US'
       });
@@ -84,7 +83,7 @@ describe('User Endpoints', () => {
 
       expectValidResponse(response);
       expect(response.body.data).toHaveProperty('id', user.id);
-      const response = await request(server)
+      const response = await request(app)
       expect(response.body.data).toHaveProperty('display_name', 'Profile User');
       expect(response.body.data).not.toHaveProperty('email'); // Should not expose email
       expect(response.body.data).not.toHaveProperty('password_hash');
@@ -93,7 +92,7 @@ describe('User Endpoints', () => {
     it('should fail with invalid user ID', async () => {
       const response = await request(app)
         .get('/api/users/invalid-id')
-      const response = await request(server)
+      const response = await request(app)
 
       expectErrorResponse(response, 'VALIDATION_001');
     });
@@ -117,7 +116,7 @@ describe('User Endpoints', () => {
         games_won: 25,
         games_lost: 20,
         games_drawn: 5,
-      const response = await request(server)
+      const response = await request(app)
         rating_blitz: 1350,
         rating_bullet: 1300
       });
@@ -144,7 +143,7 @@ describe('User Endpoints', () => {
       user = await createTestUser();
     });
 
-      const response = await authenticatedRequest(server, user)
+      const response = await authenticatedRequest(app, user)
       const updateData = {
         display_name: 'Updated Name',
         bio: 'Updated bio text',
@@ -160,7 +159,7 @@ describe('User Endpoints', () => {
       expect(response.body.data).toHaveProperty('display_name', 'Updated Name');
       expect(response.body.data).toHaveProperty('bio', 'Updated bio text');
       expect(response.body.data).toHaveProperty('country', 'CA');
-      const response = await request(server)
+      const response = await request(app)
 
     it('should fail without authentication', async () => {
       const updateData = {
@@ -173,7 +172,7 @@ describe('User Endpoints', () => {
         .expect(401);
 
       expectErrorResponse(response);
-      const response = await authenticatedRequest(server, user)
+      const response = await authenticatedRequest(app, user)
 
     it('should fail with invalid country code', async () => {
       const updateData = {
@@ -186,7 +185,7 @@ describe('User Endpoints', () => {
         .expect(400);
 
       expectErrorResponse(response, 'VALIDATION_001');
-      const response = await authenticatedRequest(server, user)
+      const response = await authenticatedRequest(app, user)
 
     it('should fail with too long bio', async () => {
       const updateData = {
@@ -203,7 +202,7 @@ describe('User Endpoints', () => {
   });
 
   describe('GET /api/users/preferences', () => {
-      const response = await authenticatedRequest(server, user)
+      const response = await authenticatedRequest(app, user)
 
     beforeEach(async () => {
       user = await createTestUser();
@@ -214,7 +213,7 @@ describe('User Endpoints', () => {
         .get('/api/users/preferences')
         .expect(200);
 
-      const response = await request(server)
+      const response = await request(app)
       expect(response.body.data).toHaveProperty('board_theme');
       expect(response.body.data).toHaveProperty('piece_set');
       expect(response.body.data).toHaveProperty('sound_enabled');
@@ -237,7 +236,7 @@ describe('User Endpoints', () => {
     });
 
     it('should update user preferences', async () => {
-      const response = await authenticatedRequest(server, user)
+      const response = await authenticatedRequest(app, user)
         board_theme: 'brown',
         piece_set: 'modern',
         sound_enabled: false,
@@ -253,7 +252,7 @@ describe('User Endpoints', () => {
       expect(response.body.data).toHaveProperty('board_theme', 'brown');
       expect(response.body.data).toHaveProperty('piece_set', 'modern');
       expect(response.body.data).toHaveProperty('sound_enabled', false);
-      const response = await authenticatedRequest(server, user)
+      const response = await authenticatedRequest(app, user)
 
     it('should fail with invalid board theme', async () => {
       const updateData = {
@@ -270,7 +269,7 @@ describe('User Endpoints', () => {
   });
 
   describe('GET /api/users/:userId/rating-history', () => {
-      const response = await request(server)
+      const response = await request(app)
 
     beforeEach(async () => {
       user = await createTestUser();
@@ -279,7 +278,7 @@ describe('User Endpoints', () => {
     it('should get rating history', async () => {
       const response = await request(app)
         .get(`/api/users/${user.id}/rating-history`)
-      const response = await request(server)
+      const response = await request(app)
 
       expectValidResponse(response);
       expect(Array.isArray(response.body.data)).toBe(true);
@@ -287,7 +286,7 @@ describe('User Endpoints', () => {
 
     it('should filter by rating type', async () => {
       const response = await request(app)
-      const response = await request(server)
+      const response = await request(app)
         .expect(200);
 
       expectValidResponse(response);
@@ -307,7 +306,7 @@ describe('User Endpoints', () => {
 
     beforeEach(async () => {
       user = await createTestUser({
-      const response = await authenticatedRequest(server, user)
+      const response = await authenticatedRequest(app, user)
         puzzles_attempted: 150,
         rating_puzzle: 1300
       });
@@ -318,7 +317,7 @@ describe('User Endpoints', () => {
         .get('/api/users/puzzle-stats')
         .expect(200);
 
-      const response = await request(server)
+      const response = await request(app)
       expect(response.body.data).toHaveProperty('puzzles_solved');
       expect(response.body.data).toHaveProperty('puzzles_attempted');
       expect(response.body.data).toHaveProperty('success_rate');

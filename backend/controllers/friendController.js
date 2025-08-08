@@ -1,7 +1,7 @@
 // controllers/friendController.js
 const friendService = require('../services/friendService');
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatSuccessResponse, formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
 /**
@@ -20,7 +20,7 @@ async function getFriends(req, res) {
     const result = await friendService.getFriends(userId, status);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Friends list retrieved successfully')
+      formatResponse(true, result, 'Friends list retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get friends list', { 
@@ -29,7 +29,7 @@ async function getFriends(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'FRIENDS_LIST_FAILED')
+      formatResponse(false, null, error.message, 'FRIENDS_LIST_FAILED')
     );
   }
 }
@@ -57,7 +57,7 @@ async function sendFriendRequest(req, res) {
     });
 
     res.status(HTTP_STATUS.CREATED).json(
-      formatSuccessResponse(result, 'Friend request sent successfully')
+      formatResponse(true, result, 'Friend request sent successfully')
     );
   } catch (error) {
     logger.error('Failed to send friend request', { 
@@ -72,7 +72,7 @@ async function sendFriendRequest(req, res) {
       HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'FRIEND_REQUEST_FAILED')
+      formatResponse(false, null, error.message, 'FRIEND_REQUEST_FAILED')
     );
   }
 }
@@ -106,7 +106,7 @@ async function respondToFriendRequest(req, res) {
       'Friend request declined successfully';
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, message)
+      formatResponse(true, result, message)
     );
   } catch (error) {
     logger.error('Failed to respond to friend request', { 
@@ -122,7 +122,7 @@ async function respondToFriendRequest(req, res) {
       HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'FRIEND_RESPONSE_FAILED')
+      formatResponse(false, null, error.message, 'FRIEND_RESPONSE_FAILED')
     );
   }
 }
@@ -148,7 +148,7 @@ async function removeFriend(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Friend removed successfully')
+      formatResponse(true, result, 'Friend removed successfully')
     );
   } catch (error) {
     logger.error('Failed to remove friend', { 
@@ -161,7 +161,7 @@ async function removeFriend(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'FRIEND_REMOVAL_FAILED')
+      formatResponse(false, null, error.message, 'FRIEND_REMOVAL_FAILED')
     );
   }
 }
@@ -200,7 +200,7 @@ async function challengeFriend(req, res) {
     });
 
     res.status(HTTP_STATUS.CREATED).json(
-      formatSuccessResponse(result, 'Challenge sent successfully')
+      formatResponse(true, result, 'Challenge sent successfully')
     );
   } catch (error) {
     logger.error('Failed to challenge friend', { 
@@ -216,7 +216,7 @@ async function challengeFriend(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'FRIEND_CHALLENGE_FAILED')
+      formatResponse(false, null, error.message, 'FRIEND_CHALLENGE_FAILED')
     );
   }
 }
@@ -233,7 +233,7 @@ async function getPendingRequests(req, res) {
     const result = await friendService.getPendingRequests(userId);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Pending requests retrieved successfully')
+      formatResponse(true, result, 'Pending requests retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get pending requests', { 
@@ -242,7 +242,7 @@ async function getPendingRequests(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'PENDING_REQUESTS_FAILED')
+      formatResponse(false, null, error.message, 'PENDING_REQUESTS_FAILED')
     );
   }
 }
@@ -265,7 +265,7 @@ async function getSentRequests(req, res) {
     );
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(sentRequests, 'Sent requests retrieved successfully')
+      formatResponse(true, sentRequests, 'Sent requests retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get sent requests', { 
@@ -274,7 +274,7 @@ async function getSentRequests(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'SENT_REQUESTS_FAILED')
+      formatResponse(false, null, error.message, 'SENT_REQUESTS_FAILED')
     );
   }
 }
@@ -300,7 +300,7 @@ async function blockUser(req, res) {
     // - Removing from friends if already friends
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('User blocking not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'User blocking not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to block user', { 
@@ -309,7 +309,7 @@ async function blockUser(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'USER_BLOCK_FAILED')
+      formatResponse(false, null, error.message, 'USER_BLOCK_FAILED')
     );
   }
 }
@@ -330,7 +330,7 @@ async function unblockUser(req, res) {
     // TODO: Implement user unblocking functionality
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('User unblocking not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'User unblocking not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to unblock user', { 
@@ -339,7 +339,7 @@ async function unblockUser(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'USER_UNBLOCK_FAILED')
+      formatResponse(false, null, error.message, 'USER_UNBLOCK_FAILED')
     );
   }
 }
@@ -356,7 +356,7 @@ async function getBlockedUsers(req, res) {
     // TODO: Implement getting blocked users list
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Blocked users list not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Blocked users list not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get blocked users', { 
@@ -365,7 +365,7 @@ async function getBlockedUsers(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'BLOCKED_USERS_FAILED')
+      formatResponse(false, null, error.message, 'BLOCKED_USERS_FAILED')
     );
   }
 }
@@ -392,7 +392,7 @@ async function getFriendActivity(req, res) {
     // - Online status
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Friend activity feed not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Friend activity feed not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get friend activity', { 
@@ -401,7 +401,7 @@ async function getFriendActivity(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'FRIEND_ACTIVITY_FAILED')
+      formatResponse(false, null, error.message, 'FRIEND_ACTIVITY_FAILED')
     );
   }
 }

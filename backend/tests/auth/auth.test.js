@@ -1,8 +1,9 @@
 const request = require('supertest');
-const app = require('../../server'); // Your main app file
+const { app } = require('../../server'); // Your main app file
 const db = require('../../models');
 const {
   createTestUser,
+  generateToken,
   expectValidResponse,
   expectErrorResponse
 } = require('../helpers/testHelpers');

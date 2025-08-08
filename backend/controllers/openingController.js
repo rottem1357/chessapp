@@ -1,7 +1,7 @@
 // controllers/openingController.js
 const db = require('../models');
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatSuccessResponse, formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 const { Op } = require('sequelize');
 
@@ -75,7 +75,7 @@ async function searchOpenings(req, res) {
     };
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Openings retrieved successfully')
+      formatResponse(true, result, 'Openings retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to search openings', { 
@@ -84,7 +84,7 @@ async function searchOpenings(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'OPENING_SEARCH_FAILED')
+      formatResponse(false, null, error.message, 'OPENING_SEARCH_FAILED')
     );
   }
 }
@@ -122,7 +122,7 @@ async function getOpeningDetails(req, res) {
 
     if (!opening) {
       return res.status(HTTP_STATUS.NOT_FOUND).json(
-        formatErrorResponse('Opening not found', 'OPENING_NOT_FOUND')
+        formatResponse(false, null, 'Opening not found', 'OPENING_NOT_FOUND')
       );
     }
 
@@ -141,7 +141,7 @@ async function getOpeningDetails(req, res) {
     };
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Opening details retrieved successfully')
+      formatResponse(true, result, 'Opening details retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get opening details', { 
@@ -153,7 +153,7 @@ async function getOpeningDetails(req, res) {
       HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'OPENING_DETAILS_FAILED')
+      formatResponse(false, null, error.message, 'OPENING_DETAILS_FAILED')
     );
   }
 }
@@ -200,7 +200,7 @@ async function getPopularOpenings(req, res) {
     }));
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Popular openings retrieved successfully')
+      formatResponse(true, result, 'Popular openings retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get popular openings', { 
@@ -209,7 +209,7 @@ async function getPopularOpenings(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'POPULAR_OPENINGS_FAILED')
+      formatResponse(false, null, error.message, 'POPULAR_OPENINGS_FAILED')
     );
   }
 }
@@ -232,7 +232,7 @@ async function getOpeningsByECO(req, res) {
     // Validate ECO group
     if (!/^[A-E]$/.test(eco_group.toUpperCase())) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatErrorResponse('Invalid ECO group. Must be A, B, C, D, or E', 'INVALID_ECO_GROUP')
+        formatResponse(false, null, 'Invalid ECO group. Must be A, B, C, D, or E', 'INVALID_ECO_GROUP')
       );
     }
 
@@ -274,7 +274,7 @@ async function getOpeningsByECO(req, res) {
     };
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, `ECO ${eco_group.toUpperCase()} openings retrieved successfully`)
+      formatResponse(true, result, `ECO ${eco_group.toUpperCase()} openings retrieved successfully`)
     );
   } catch (error) {
     logger.error('Failed to get openings by ECO', { 
@@ -283,7 +283,7 @@ async function getOpeningsByECO(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'ECO_OPENINGS_FAILED')
+      formatResponse(false, null, error.message, 'ECO_OPENINGS_FAILED')
     );
   }
 }
@@ -305,7 +305,7 @@ async function getOpeningStats(req, res) {
     // - Average success rates by opening type
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Opening statistics not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Opening statistics not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get opening statistics', { 
@@ -313,7 +313,7 @@ async function getOpeningStats(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'OPENING_STATS_FAILED')
+      formatResponse(false, null, error.message, 'OPENING_STATS_FAILED')
     );
   }
 }
@@ -340,7 +340,7 @@ async function getOpeningRecommendations(req, res) {
     // - Preferred game types
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Opening recommendations not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Opening recommendations not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get opening recommendations', { 
@@ -349,7 +349,7 @@ async function getOpeningRecommendations(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'OPENING_RECOMMENDATIONS_FAILED')
+      formatResponse(false, null, error.message, 'OPENING_RECOMMENDATIONS_FAILED')
     );
   }
 }
@@ -376,7 +376,7 @@ async function getUserRepertoire(req, res) {
     // - Gaps in repertoire
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('User repertoire analysis not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'User repertoire analysis not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get user repertoire', { 
@@ -385,7 +385,7 @@ async function getUserRepertoire(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'USER_REPERTOIRE_FAILED')
+      formatResponse(false, null, error.message, 'USER_REPERTOIRE_FAILED')
     );
   }
 }
@@ -410,7 +410,7 @@ async function addToFavorites(req, res) {
     // - Get quick access for study
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Opening favorites not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Opening favorites not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to add opening to favorites', { 
@@ -420,7 +420,7 @@ async function addToFavorites(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'ADD_FAVORITE_FAILED')
+      formatResponse(false, null, error.message, 'ADD_FAVORITE_FAILED')
     );
   }
 }

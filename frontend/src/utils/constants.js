@@ -196,13 +196,3 @@ export const FEATURE_FLAGS = {
   ENABLE_AI_HINTS: false,
 };
 
-// Routes
-export const ROUTES = {
-  HOME: '/',
-  GAME: '/game/:gameId',
-  LOCAL_GAME: '/local',
-  AI_GAME: '/ai-game/:gameId',
-  ABOUT: '/about',
-  HELP: '/help',
-  SETTINGS: '/settings',
-};

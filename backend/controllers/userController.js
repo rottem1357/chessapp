@@ -1,7 +1,7 @@
 // controllers/userController.js
 const userService = require('../services/userService');
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatSuccessResponse, formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
 /**
@@ -21,7 +21,7 @@ async function getUserProfile(req, res) {
     const result = await userService.getUserProfile(userId, requestingUserId);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Profile retrieved successfully')
+      formatResponse(true, result, 'Profile retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get user profile', { 
@@ -34,7 +34,7 @@ async function getUserProfile(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'PROFILE_FETCH_FAILED')
+      formatResponse(false, null, error.message, 'PROFILE_FETCH_FAILED')
     );
   }
 }
@@ -57,7 +57,7 @@ async function updateProfile(req, res) {
     logger.info('Profile updated successfully', { userId });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Profile updated successfully')
+      formatResponse(true, result, 'Profile updated successfully')
     );
   } catch (error) {
     logger.error('Failed to update profile', { 
@@ -66,7 +66,7 @@ async function updateProfile(req, res) {
     });
 
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse(error.message, 'PROFILE_UPDATE_FAILED')
+      formatResponse(false, null, error.message, 'PROFILE_UPDATE_FAILED')
     );
   }
 }
@@ -88,7 +88,7 @@ async function searchUsers(req, res) {
     const result = await userService.searchUsers(query, parseInt(page), parseInt(limit));
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Search completed successfully')
+      formatResponse(true, result, 'Search completed successfully')
     );
   } catch (error) {
     logger.error('Failed to search users', { 
@@ -97,7 +97,7 @@ async function searchUsers(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'USER_SEARCH_FAILED')
+      formatResponse(false, null, error.message, 'USER_SEARCH_FAILED')
     );
   }
 }
@@ -117,7 +117,7 @@ async function getUserStats(req, res) {
     const result = await userService.getUserStats(userId);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Statistics retrieved successfully')
+      formatResponse(true, result, 'Statistics retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get user stats', { 
@@ -129,7 +129,7 @@ async function getUserStats(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'STATS_FETCH_FAILED')
+      formatResponse(false, null, error.message, 'STATS_FETCH_FAILED')
     );
   }
 }
@@ -146,7 +146,7 @@ async function getPreferences(req, res) {
     const result = await userService.getPreferences(userId);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Preferences retrieved successfully')
+      formatResponse(true, result, 'Preferences retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get preferences', { 
@@ -155,7 +155,7 @@ async function getPreferences(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'PREFERENCES_FETCH_FAILED')
+      formatResponse(false, null, error.message, 'PREFERENCES_FETCH_FAILED')
     );
   }
 }
@@ -178,7 +178,7 @@ async function updatePreferences(req, res) {
     logger.info('Preferences updated successfully', { userId });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Preferences updated successfully')
+      formatResponse(true, result, 'Preferences updated successfully')
     );
   } catch (error) {
     logger.error('Failed to update preferences', { 
@@ -187,7 +187,7 @@ async function updatePreferences(req, res) {
     });
 
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse(error.message, 'PREFERENCES_UPDATE_FAILED')
+      formatResponse(false, null, error.message, 'PREFERENCES_UPDATE_FAILED')
     );
   }
 }
@@ -210,7 +210,7 @@ async function getRatingHistory(req, res) {
     const result = await userService.getRatingHistory(userId, type, parseInt(limit));
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Rating history retrieved successfully')
+      formatResponse(true, result, 'Rating history retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get rating history', { 
@@ -222,7 +222,7 @@ async function getRatingHistory(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'RATING_HISTORY_FAILED')
+      formatResponse(false, null, error.message, 'RATING_HISTORY_FAILED')
     );
   }
 }
@@ -239,7 +239,7 @@ async function getPuzzleStats(req, res) {
     const result = await userService.getPuzzleStats(userId);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Puzzle statistics retrieved successfully')
+      formatResponse(true, result, 'Puzzle statistics retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get puzzle stats', { 
@@ -251,7 +251,7 @@ async function getPuzzleStats(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'PUZZLE_STATS_FAILED')
+      formatResponse(false, null, error.message, 'PUZZLE_STATS_FAILED')
     );
   }
 }
@@ -274,7 +274,7 @@ async function getRecentActivity(req, res) {
     // This could include recent games, puzzle attempts, achievements, etc.
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Recent activity not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Recent activity not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get recent activity', { 
@@ -283,7 +283,7 @@ async function getRecentActivity(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'RECENT_ACTIVITY_FAILED')
+      formatResponse(false, null, error.message, 'RECENT_ACTIVITY_FAILED')
     );
   }
 }
@@ -302,7 +302,7 @@ async function getAchievements(req, res) {
 
     // TODO: Implement achievements system
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Achievements not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Achievements not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get achievements', { 
@@ -311,7 +311,7 @@ async function getAchievements(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'ACHIEVEMENTS_FAILED')
+      formatResponse(false, null, error.message, 'ACHIEVEMENTS_FAILED')
     );
   }
 }
@@ -333,7 +333,7 @@ async function uploadAvatar(req, res) {
     // 4. Database update
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Avatar upload not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Avatar upload not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to upload avatar', { 
@@ -342,7 +342,7 @@ async function uploadAvatar(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'AVATAR_UPLOAD_FAILED')
+      formatResponse(false, null, error.message, 'AVATAR_UPLOAD_FAILED')
     );
   }
 }
@@ -364,7 +364,7 @@ async function deleteAccount(req, res) {
     // 3. Account deactivation
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Account deletion not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Account deletion not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to delete account', { 
@@ -373,7 +373,7 @@ async function deleteAccount(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'ACCOUNT_DELETION_FAILED')
+      formatResponse(false, null, error.message, 'ACCOUNT_DELETION_FAILED')
     );
   }
 }

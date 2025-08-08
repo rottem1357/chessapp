@@ -57,7 +57,13 @@ function generateToken(userId) {
  */
 function authenticatedRequest(app, user) {
   const token = generateToken(user.id);
-  return request(app).set('Authorization', `Bearer ${token}`);
+  return {
+    get: (url) => request(app).get(url).set('Authorization', `Bearer ${token}`),
+    post: (url) => request(app).post(url).set('Authorization', `Bearer ${token}`),
+    put: (url) => request(app).put(url).set('Authorization', `Bearer ${token}`),
+    delete: (url) => request(app).delete(url).set('Authorization', `Bearer ${token}`),
+    patch: (url) => request(app).patch(url).set('Authorization', `Bearer ${token}`)
+  };
 }
 
 /**
@@ -150,12 +156,21 @@ async function createTestFriendship(requesterId, addresseeId, status = 'pending'
 }
 
 /**
- * Assert response structure
+ * Assert response structure - updated for unified format
  */
 function expectValidResponse(response, expectedData = null) {
-  expect(response.body).toHaveProperty('success');
+  expect(response.status).toBeGreaterThanOrEqual(200);
+  expect(response.status).toBeLessThan(300);
+  expect(response.body).toBeDefined();
+
+  // Validate unified response structure
+  expect(response.body).toHaveProperty('success', true);
   expect(response.body).toHaveProperty('message');
   expect(response.body).toHaveProperty('data');
+  expect(response.body).toHaveProperty('timestamp');
+  
+  // Validate timestamp format
+  expect(new Date(response.body.timestamp)).toBeInstanceOf(Date);
   
   if (expectedData) {
     expect(response.body.data).toMatchObject(expectedData);
@@ -163,20 +178,38 @@ function expectValidResponse(response, expectedData = null) {
 }
 
 /**
- * Assert error response structure
+ * Assert error response structure - updated for unified format
  */
 function expectErrorResponse(response, expectedCode = null) {
+  expect(response.status).toBeGreaterThanOrEqual(400);
+  expect(response.body).toBeDefined();
+
+  // Validate unified error response structure
   expect(response.body).toHaveProperty('success', false);
   expect(response.body).toHaveProperty('message');
-  expect(response.body).toHaveProperty('error_code');
+  expect(response.body).toHaveProperty('data');
+  expect(response.body).toHaveProperty('errorCode');
+  expect(response.body).toHaveProperty('timestamp');
+  
+  // Validate timestamp format
+  expect(new Date(response.body.timestamp)).toBeInstanceOf(Date);
+  
+  // For validation errors, data should contain error details
+  // For other errors, data should be null
+  if (response.body.errorCode === 'VALIDATION_001') {
+    expect(response.body.data).toHaveProperty('errors');
+    expect(Array.isArray(response.body.data.errors)).toBe(true);
+  } else {
+    expect(response.body.data).toBe(null);
+  }
   
   if (expectedCode) {
-    expect(response.body.error_code).toBe(expectedCode);
+    expect(response.body.errorCode).toBe(expectedCode);
   }
 }
 
 /**
- * Assert pagination structure
+ * Assert pagination structure - updated for unified format
  */
 function expectPaginatedResponse(response) {
   expectValidResponse(response);
@@ -185,7 +218,27 @@ function expectPaginatedResponse(response) {
   expect(response.body.data.pagination).toHaveProperty('page');
   expect(response.body.data.pagination).toHaveProperty('limit');
   expect(response.body.data.pagination).toHaveProperty('total');
-  expect(response.body.data.pagination).toHaveProperty('totalPages');
+  expect(response.body.data.pagination).toHaveProperty('pages');
+  expect(response.body.data.pagination).toHaveProperty('hasNext');
+  expect(response.body.data.pagination).toHaveProperty('hasPrev');
+}
+
+/**
+ * Validate UUID format
+ */
+function expectValidUUID(uuid) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  expect(uuid).toMatch(uuidRegex);
+}
+
+/**
+ * Validate authentication token format
+ */
+function expectValidToken(token) {
+  expect(typeof token).toBe('string');
+  expect(token.length).toBeGreaterThan(50);
+  // JWT tokens have 3 parts separated by dots
+  expect(token.split('.')).toHaveLength(3);
 }
 
 module.exports = {
@@ -200,5 +253,7 @@ module.exports = {
   createTestFriendship,
   expectValidResponse,
   expectErrorResponse,
-  expectPaginatedResponse
+  expectPaginatedResponse,
+  expectValidUUID,
+  expectValidToken
 };

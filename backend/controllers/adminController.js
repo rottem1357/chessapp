@@ -1,7 +1,7 @@
 // controllers/adminController.js
 const db = require('../models');
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatSuccessResponse, formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 const { Op } = require('sequelize');
 
@@ -79,7 +79,7 @@ async function getUsers(req, res) {
     };
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Users retrieved successfully')
+      formatResponse(true, result, 'Users retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get users for admin', { 
@@ -88,7 +88,7 @@ async function getUsers(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'ADMIN_USERS_FAILED')
+      formatResponse(false, null, error.message, 'ADMIN_USERS_FAILED')
     );
   }
 }
@@ -159,7 +159,7 @@ async function getGames(req, res) {
     };
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Games retrieved successfully')
+      formatResponse(true, result, 'Games retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get games for admin', { 
@@ -168,7 +168,7 @@ async function getGames(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'ADMIN_GAMES_FAILED')
+      formatResponse(false, null, error.message, 'ADMIN_GAMES_FAILED')
     );
   }
 }
@@ -201,7 +201,7 @@ async function getReports(req, res) {
     // - Content moderation issues
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Reports system not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Reports system not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get reports for admin', { 
@@ -210,7 +210,7 @@ async function getReports(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'ADMIN_REPORTS_FAILED')
+      formatResponse(false, null, error.message, 'ADMIN_REPORTS_FAILED')
     );
   }
 }
@@ -273,7 +273,7 @@ async function getAdminStats(req, res) {
     };
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(stats, 'Admin statistics retrieved successfully')
+      formatResponse(true, stats, 'Admin statistics retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get admin statistics', { 
@@ -282,7 +282,7 @@ async function getAdminStats(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'ADMIN_STATS_FAILED')
+      formatResponse(false, null, error.message, 'ADMIN_STATS_FAILED')
     );
   }
 }
@@ -305,7 +305,7 @@ async function updateUserStatus(req, res) {
     const user = await db.User.findByPk(userId);
     if (!user) {
       return res.status(HTTP_STATUS.NOT_FOUND).json(
-        formatErrorResponse('User not found', 'USER_NOT_FOUND')
+        formatResponse(false, null, 'User not found', 'USER_NOT_FOUND')
       );
     }
 
@@ -339,7 +339,7 @@ async function updateUserStatus(req, res) {
         break;
       default:
         return res.status(HTTP_STATUS.BAD_REQUEST).json(
-          formatErrorResponse('Invalid action', 'INVALID_ACTION')
+          formatResponse(false, null, 'Invalid action', 'INVALID_ACTION')
         );
     }
 
@@ -354,7 +354,7 @@ async function updateUserStatus(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse({ userId, action }, message)
+      formatResponse(true, { userId, action }, message)
     );
   } catch (error) {
     logger.error('Failed to update user status', { 
@@ -364,7 +364,7 @@ async function updateUserStatus(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'USER_STATUS_UPDATE_FAILED')
+      formatResponse(false, null, error.message, 'USER_STATUS_UPDATE_FAILED')
     );
   }
 }
@@ -387,13 +387,13 @@ async function forceEndGame(req, res) {
     const game = await db.Game.findByPk(gameId);
     if (!game) {
       return res.status(HTTP_STATUS.NOT_FOUND).json(
-        formatErrorResponse('Game not found', 'GAME_NOT_FOUND')
+        formatResponse(false, null, 'Game not found', 'GAME_NOT_FOUND')
       );
     }
 
     if (game.status === 'finished') {
       return res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatErrorResponse('Game is already finished', 'GAME_ALREADY_FINISHED')
+        formatResponse(false, null, 'Game is already finished', 'GAME_ALREADY_FINISHED')
       );
     }
 
@@ -415,7 +415,7 @@ async function forceEndGame(req, res) {
     });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse({ gameId, reason }, 'Game ended successfully')
+      formatResponse(true, { gameId, reason }, 'Game ended successfully')
     );
   } catch (error) {
     logger.error('Failed to force end game', { 
@@ -425,7 +425,7 @@ async function forceEndGame(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'FORCE_END_GAME_FAILED')
+      formatResponse(false, null, error.message, 'FORCE_END_GAME_FAILED')
     );
   }
 }
@@ -453,7 +453,7 @@ async function getSystemHealth(req, res) {
     };
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(health, 'System health retrieved successfully')
+      formatResponse(true, health, 'System health retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get system health', { 
@@ -462,7 +462,7 @@ async function getSystemHealth(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'SYSTEM_HEALTH_FAILED')
+      formatResponse(false, null, error.message, 'SYSTEM_HEALTH_FAILED')
     );
   }
 }
@@ -487,7 +487,7 @@ async function broadcastAnnouncement(req, res) {
     // - Show in user interface
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('System announcements not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'System announcements not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to broadcast announcement', { 
@@ -496,7 +496,7 @@ async function broadcastAnnouncement(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'BROADCAST_FAILED')
+      formatResponse(false, null, error.message, 'BROADCAST_FAILED')
     );
   }
 }
@@ -530,7 +530,7 @@ async function getAuditLogs(req, res) {
     // - Security events
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Audit logs not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Audit logs not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get audit logs', { 
@@ -539,7 +539,7 @@ async function getAuditLogs(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'AUDIT_LOGS_FAILED')
+      formatResponse(false, null, error.message, 'AUDIT_LOGS_FAILED')
     );
   }
 }

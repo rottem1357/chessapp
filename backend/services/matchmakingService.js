@@ -11,8 +11,10 @@ class MatchmakingService {
     };
     this.isProcessing = false;
     
-    // Start queue processing
-    this.startQueueProcessor();
+    // Start queue processing only in non-test environments
+    if (process.env.NODE_ENV !== 'test') {
+      this.startQueueProcessor();
+    }
   }
 
   /**

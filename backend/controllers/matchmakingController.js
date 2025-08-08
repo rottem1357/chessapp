@@ -1,7 +1,7 @@
 // controllers/matchmakingController.js
 const matchmakingService = require('../services/matchmakingService');
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatSuccessResponse, formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
 /**
@@ -36,7 +36,7 @@ async function joinQueue(req, res) {
       });
 
       res.status(HTTP_STATUS.OK).json(
-        formatSuccessResponse(result, 'Match found! Game created successfully')
+        formatResponse(true, result, 'Match found! Game created successfully')
       );
     } else {
       logger.info('Player added to queue', { 
@@ -47,7 +47,7 @@ async function joinQueue(req, res) {
       });
 
       res.status(HTTP_STATUS.OK).json(
-        formatSuccessResponse(result, 'Added to matchmaking queue successfully')
+        formatResponse(true, result, 'Added to matchmaking queue successfully')
       );
     }
   } catch (error) {
@@ -61,7 +61,7 @@ async function joinQueue(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.BAD_REQUEST;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'QUEUE_JOIN_FAILED')
+      formatResponse(false, null, error.message, 'QUEUE_JOIN_FAILED')
     );
   }
 }
@@ -80,7 +80,7 @@ async function leaveQueue(req, res) {
     logger.info('Player left queue', { userId });
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Left matchmaking queue successfully')
+      formatResponse(true, result, 'Left matchmaking queue successfully')
     );
   } catch (error) {
     logger.error('Failed to leave matchmaking queue', { 
@@ -89,7 +89,7 @@ async function leaveQueue(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'QUEUE_LEAVE_FAILED')
+      formatResponse(false, null, error.message, 'QUEUE_LEAVE_FAILED')
     );
   }
 }
@@ -106,7 +106,7 @@ async function getQueueStatus(req, res) {
     const result = await matchmakingService.getQueueStatus(userId);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Queue status retrieved successfully')
+      formatResponse(true, result, 'Queue status retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get queue status', { 
@@ -115,7 +115,7 @@ async function getQueueStatus(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'QUEUE_STATUS_FAILED')
+      formatResponse(false, null, error.message, 'QUEUE_STATUS_FAILED')
     );
   }
 }
@@ -141,7 +141,7 @@ async function getQueueStats(req, res) {
     };
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(queueStats, 'Queue statistics retrieved successfully')
+      formatResponse(true, queueStats, 'Queue statistics retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get queue statistics', { 
@@ -149,7 +149,7 @@ async function getQueueStats(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'QUEUE_STATS_FAILED')
+      formatResponse(false, null, error.message, 'QUEUE_STATS_FAILED')
     );
   }
 }
@@ -179,7 +179,7 @@ async function updateQueuePreferences(req, res) {
     // - Blocked opponents list
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Queue preferences not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Queue preferences not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to update queue preferences', { 
@@ -188,7 +188,7 @@ async function updateQueuePreferences(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'QUEUE_PREFERENCES_FAILED')
+      formatResponse(false, null, error.message, 'QUEUE_PREFERENCES_FAILED')
     );
   }
 }
@@ -215,7 +215,7 @@ async function getQueueHistory(req, res) {
     // - Cancelled queue sessions
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Queue history not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Queue history not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get queue history', { 
@@ -224,7 +224,7 @@ async function getQueueHistory(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'QUEUE_HISTORY_FAILED')
+      formatResponse(false, null, error.message, 'QUEUE_HISTORY_FAILED')
     );
   }
 }
@@ -247,7 +247,7 @@ async function cancelMatch(req, res) {
     // (useful for when match is found but game hasn't started yet)
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Match cancellation not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Match cancellation not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to cancel match', { 
@@ -256,7 +256,7 @@ async function cancelMatch(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'MATCH_CANCEL_FAILED')
+      formatResponse(false, null, error.message, 'MATCH_CANCEL_FAILED')
     );
   }
 }
@@ -283,7 +283,7 @@ async function reportIssue(req, res) {
     // - Opponent behavior issues
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Issue reporting not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Issue reporting not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to report matchmaking issue', { 
@@ -292,7 +292,7 @@ async function reportIssue(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'ISSUE_REPORT_FAILED')
+      formatResponse(false, null, error.message, 'ISSUE_REPORT_FAILED')
     );
   }
 }
@@ -317,7 +317,7 @@ async function getOptimalQueueTimes(req, res) {
     // - Best times for specific rating ranges
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Optimal queue times not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Optimal queue times not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get optimal queue times', { 
@@ -325,7 +325,7 @@ async function getOptimalQueueTimes(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'OPTIMAL_TIMES_FAILED')
+      formatResponse(false, null, error.message, 'OPTIMAL_TIMES_FAILED')
     );
   }
 }

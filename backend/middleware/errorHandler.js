@@ -1,6 +1,6 @@
 // middleware/errorHandler.js
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
 /**
@@ -54,15 +54,8 @@ const errorHandler = (err, req, res, next) => {
     errorCode = err.code || 'CUSTOM_ERROR';
   }
 
-  // Don't expose internal error details in production
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  const errorDetails = isDevelopment ? {
-    stack: err.stack,
-    details: err
-  } : undefined;
-
   res.status(statusCode).json(
-    formatErrorResponse(message, errorCode, errorDetails)
+    formatResponse(false, null, message, errorCode)
   );
 };
 
@@ -78,10 +71,7 @@ const notFoundHandler = (req, res) => {
   });
 
   res.status(HTTP_STATUS.NOT_FOUND).json(
-    formatErrorResponse(
-      `Route ${req.method} ${req.path} not found`,
-      'ROUTE_NOT_FOUND'
-    )
+    formatResponse(false, null, `Route ${req.method} ${req.path} not found`, 'ROUTE_NOT_FOUND')
   );
 };
 
@@ -93,47 +83,8 @@ const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
-/**
- * Rate limit error handler
- */
-const rateLimitHandler = (req, res) => {
-  logger.warn('Rate limit exceeded', {
-    ip: req.ip,
-    path: req.path,
-    method: req.method,
-    userAgent: req.get('User-Agent')
-  });
-
-  res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json(
-    formatErrorResponse(
-      'Too many requests. Please try again later.',
-      'RATE_LIMIT_001'
-    )
-  );
-};
-
-/**
- * Request timeout handler
- */
-const timeoutHandler = (req, res) => {
-  logger.warn('Request timeout', {
-    path: req.path,
-    method: req.method,
-    ip: req.ip
-  });
-
-  res.status(HTTP_STATUS.REQUEST_TIMEOUT).json(
-    formatErrorResponse(
-      'Request timeout. Please try again.',
-      'TIMEOUT_ERROR'
-    )
-  );
-};
-
 module.exports = {
   errorHandler,
   notFoundHandler,
-  asyncHandler,
-  rateLimitHandler,
-  timeoutHandler
+  asyncHandler
 };

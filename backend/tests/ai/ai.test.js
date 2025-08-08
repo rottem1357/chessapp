@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../../app');
+const { app } = require('../../server');
 const {
   createTestUser,
   authenticatedRequest,
@@ -206,9 +206,11 @@ describe('AI Game Endpoints', () => {
   });
 
   describe('POST /api/ai/games/:gameId/hint', () => {
-    let aiGame;
+    let user, aiGame;
 
     beforeEach(async () => {
+      user = await createTestUser();
+      
       const gameData = {
         difficulty: 'beginner',
         user_color: 'white'
@@ -251,9 +253,11 @@ describe('AI Game Endpoints', () => {
   });
       
   describe('DELETE /api/ai/games/:gameId', () => {
-    let aiGame;
+    let user, aiGame;
 
     beforeEach(async () => {
+      user = await createTestUser();
+      
       const gameData = {
         difficulty: 'beginner',
         user_color: 'white'

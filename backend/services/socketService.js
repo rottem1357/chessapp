@@ -7,8 +7,7 @@ const { SOCKET_EVENTS, ERROR_MESSAGES } = require('../utils/constants');
 const { 
   sanitizePlayerName, 
   sanitizeChatMessage,
-  formatErrorResponse,
-  formatSuccessResponse 
+  formatResponse 
 } = require('../utils/helpers');
 const logger = require('../utils/logger');
 const gameService = require('./gameService');
@@ -116,7 +115,7 @@ class SocketService {
       });
       
       socket.emit(SOCKET_EVENTS.ERROR, 
-        formatErrorResponse('Failed to join queue')
+        formatResponse(false, null, 'Failed to join queue')
       );
     }
   }
@@ -133,7 +132,7 @@ class SocketService {
       
       if (!player) {
         socket.emit(SOCKET_EVENTS.ERROR, 
-          formatErrorResponse('Player not found')
+          formatResponse(false, null, 'Player not found')
         );
         return;
       }
@@ -142,7 +141,7 @@ class SocketService {
 
       if (result.error) {
         socket.emit(SOCKET_EVENTS.INVALID_MOVE, 
-          formatErrorResponse(result.error)
+          formatResponse(false, null, result.error)
         );
         return;
       }
@@ -175,7 +174,7 @@ class SocketService {
       });
       
       socket.emit(SOCKET_EVENTS.ERROR, 
-        formatErrorResponse('Failed to make move')
+        formatResponse(false, null, 'Failed to make move')
       );
     }
   }
@@ -192,7 +191,7 @@ class SocketService {
       
       if (!player) {
         socket.emit(SOCKET_EVENTS.ERROR, 
-          formatErrorResponse('Player not found')
+          formatResponse(false, null, 'Player not found')
         );
         return;
       }
@@ -200,7 +199,7 @@ class SocketService {
       const sanitizedMessage = sanitizeChatMessage(message);
       if (!sanitizedMessage) {
         socket.emit(SOCKET_EVENTS.ERROR, 
-          formatErrorResponse(ERROR_MESSAGES.CHAT_MESSAGE_TOO_LONG)
+          formatResponse(false, null, ERROR_MESSAGES.CHAT_MESSAGE_TOO_LONG)
         );
         return;
       }
@@ -209,7 +208,7 @@ class SocketService {
 
       if (result.error) {
         socket.emit(SOCKET_EVENTS.ERROR, 
-          formatErrorResponse(result.error)
+          formatResponse(false, null, result.error)
         );
         return;
       }
@@ -230,7 +229,7 @@ class SocketService {
       });
       
       socket.emit(SOCKET_EVENTS.ERROR, 
-        formatErrorResponse('Failed to send message')
+        formatResponse(false, null, 'Failed to send message')
       );
     }
   }
@@ -247,7 +246,7 @@ class SocketService {
       
       if (!player) {
         socket.emit(SOCKET_EVENTS.ERROR, 
-          formatErrorResponse('Player not found')
+          formatResponse(false, null, 'Player not found')
         );
         return;
       }
@@ -255,7 +254,7 @@ class SocketService {
       const game = gameService.getGame(gameId);
       if (!game) {
         socket.emit(SOCKET_EVENTS.ERROR, 
-          formatErrorResponse(ERROR_MESSAGES.GAME_NOT_FOUND)
+          formatResponse(false, null, ERROR_MESSAGES.GAME_NOT_FOUND)
         );
         return;
       }
@@ -282,7 +281,7 @@ class SocketService {
       });
       
       socket.emit(SOCKET_EVENTS.ERROR, 
-        formatErrorResponse('Failed to resign')
+        formatResponse(false, null, 'Failed to resign')
       );
     }
   }
@@ -299,7 +298,7 @@ class SocketService {
       
       if (!player) {
         socket.emit(SOCKET_EVENTS.ERROR, 
-          formatErrorResponse('Player not found')
+          formatResponse(false, null, 'Player not found')
         );
         return;
       }
@@ -307,7 +306,7 @@ class SocketService {
       const game = gameService.getGame(gameId);
       if (!game) {
         socket.emit(SOCKET_EVENTS.ERROR, 
-          formatErrorResponse(ERROR_MESSAGES.GAME_NOT_FOUND)
+          formatResponse(false, null, ERROR_MESSAGES.GAME_NOT_FOUND)
         );
         return;
       }
@@ -333,7 +332,7 @@ class SocketService {
       });
       
       socket.emit(SOCKET_EVENTS.ERROR, 
-        formatErrorResponse('Failed to request draw')
+        formatResponse(false, null, 'Failed to request draw')
       );
     }
   }
@@ -350,7 +349,7 @@ class SocketService {
       
       if (!player) {
         socket.emit(SOCKET_EVENTS.ERROR, 
-          formatErrorResponse('Player not found')
+          formatResponse(false, null, 'Player not found')
         );
         return;
       }
@@ -389,7 +388,7 @@ class SocketService {
       });
       
       socket.emit(SOCKET_EVENTS.ERROR, 
-        formatErrorResponse('Failed to respond to draw')
+        formatResponse(false, null, 'Failed to respond to draw')
       );
     }
   }
@@ -533,3 +532,4 @@ class SocketService {
 }
 
 module.exports = SocketService;
+

@@ -1,8 +1,9 @@
 const request = require('supertest');
-const { server } = require('../../server'); // Your main app file
+const { app } = require('../../server'); // Your main app file
 const db = require('../../models');
 const {
   createTestUser,
+  generateToken,
   expectValidResponse,
   expectErrorResponse
 } = require('../helpers/testHelpers');
@@ -19,7 +20,7 @@ describe('Authentication Endpoints', () => {
         country: 'US'
       };
 
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/register')
         .send(userData)
         .expect(201);
@@ -40,7 +41,7 @@ describe('Authentication Endpoints', () => {
         password: 'Password123!'
       };
 
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/register')
         .send(userData)
         .expect(409);
@@ -55,7 +56,7 @@ describe('Authentication Endpoints', () => {
         password: 'Password123!'
       };
 
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/register')
         .send(userData)
         .expect(400);
@@ -70,7 +71,7 @@ describe('Authentication Endpoints', () => {
         password: 'weak'
       };
 
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/register')
         .send(userData)
         .expect(400);
@@ -88,7 +89,7 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should login with username successfully', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/login')
         .send({
           username: 'loginuser',
@@ -103,7 +104,7 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should login with email successfully', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/login')
         .send({
           username: 'login@example.com',
@@ -116,7 +117,7 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should fail with wrong password', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/login')
         .send({
           username: 'loginuser',
@@ -128,7 +129,7 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should fail with non-existent user', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/login')
         .send({
           username: 'nonexistent',
@@ -149,7 +150,7 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should get current user profile', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .get('/api/auth/me')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
@@ -161,7 +162,7 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should fail without token', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .get('/api/auth/me')
         .expect(401);
 
@@ -169,7 +170,7 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should fail with invalid token', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .get('/api/auth/me')
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
@@ -187,7 +188,7 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should logout successfully', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/logout')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
@@ -196,7 +197,7 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should fail without token', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/logout')
         .expect(401);
 
@@ -212,7 +213,7 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should request password reset successfully', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/password-reset/request')
         .send({
           email: 'reset@example.com'
@@ -223,7 +224,7 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should handle non-existent email gracefully', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/password-reset/request')
         .send({
           email: 'nonexistent@example.com'
@@ -234,7 +235,7 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should fail with invalid email format', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .post('/api/auth/password-reset/request')
         .send({
           email: 'invalid-email'

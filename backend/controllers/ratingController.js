@@ -1,7 +1,7 @@
 // controllers/ratingController.js
 const ratingService = require('../services/ratingService');
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatSuccessResponse, formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
 /**
@@ -26,7 +26,7 @@ async function getLeaderboard(req, res) {
     const validTypes = ['rapid', 'blitz', 'bullet', 'puzzle'];
     if (!validTypes.includes(type)) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatErrorResponse('Invalid rating type. Must be one of: ' + validTypes.join(', '), 'INVALID_RATING_TYPE')
+        formatResponse(false, null, 'Invalid rating type. Must be one of: ' + validTypes.join(', '), 'INVALID_RATING_TYPE')
       );
     }
 
@@ -37,7 +37,7 @@ async function getLeaderboard(req, res) {
     const result = await ratingService.getLeaderboard(type, pageNum, limitNum);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'Leaderboard retrieved successfully')
+      formatResponse(true, result, 'Leaderboard retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get leaderboard', { 
@@ -46,7 +46,7 @@ async function getLeaderboard(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'LEADERBOARD_FAILED')
+      formatResponse(false, null, error.message, 'LEADERBOARD_FAILED')
     );
   }
 }
@@ -69,14 +69,14 @@ async function getUserRank(req, res) {
     const validTypes = ['rapid', 'blitz', 'bullet', 'puzzle'];
     if (!validTypes.includes(type)) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatErrorResponse('Invalid rating type. Must be one of: ' + validTypes.join(', '), 'INVALID_RATING_TYPE')
+        formatResponse(false, null, 'Invalid rating type. Must be one of: ' + validTypes.join(', '), 'INVALID_RATING_TYPE')
       );
     }
 
     const result = await ratingService.getUserRank(userId, type);
 
     res.status(HTTP_STATUS.OK).json(
-      formatSuccessResponse(result, 'User rank retrieved successfully')
+      formatResponse(true, result, 'User rank retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get user rank', { 
@@ -89,7 +89,7 @@ async function getUserRank(req, res) {
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
-      formatErrorResponse(error.message, 'USER_RANK_FAILED')
+      formatResponse(false, null, error.message, 'USER_RANK_FAILED')
     );
   }
 }
@@ -115,7 +115,7 @@ async function getGlobalStats(req, res) {
     // - Top rating gains/losses of the week/month
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Global rating statistics not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Global rating statistics not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get global rating stats', { 
@@ -123,7 +123,7 @@ async function getGlobalStats(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'GLOBAL_STATS_FAILED')
+      formatResponse(false, null, error.message, 'GLOBAL_STATS_FAILED')
     );
   }
 }
@@ -147,7 +147,7 @@ async function getRatingDistribution(req, res) {
     // - Bell curve visualization data
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Rating distribution not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Rating distribution not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get rating distribution', { 
@@ -155,7 +155,7 @@ async function getRatingDistribution(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'RATING_DISTRIBUTION_FAILED')
+      formatResponse(false, null, error.message, 'RATING_DISTRIBUTION_FAILED')
     );
   }
 }
@@ -186,13 +186,13 @@ async function getTopMovers(req, res) {
     
     if (!validPeriods.includes(period)) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatErrorResponse('Invalid period. Must be one of: ' + validPeriods.join(', '), 'INVALID_PERIOD')
+        formatResponse(false, null, 'Invalid period. Must be one of: ' + validPeriods.join(', '), 'INVALID_PERIOD')
       );
     }
 
     if (!validDirections.includes(direction)) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatErrorResponse('Invalid direction. Must be one of: ' + validDirections.join(', '), 'INVALID_DIRECTION')
+        formatResponse(false, null, 'Invalid direction. Must be one of: ' + validDirections.join(', '), 'INVALID_DIRECTION')
       );
     }
 
@@ -203,7 +203,7 @@ async function getTopMovers(req, res) {
     // - Actual rating change amounts
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Top movers not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Top movers not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get top movers', { 
@@ -212,7 +212,7 @@ async function getTopMovers(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'TOP_MOVERS_FAILED')
+      formatResponse(false, null, error.message, 'TOP_MOVERS_FAILED')
     );
   }
 }
@@ -245,7 +245,7 @@ async function getRatingProgress(req, res) {
     // - Recent performance streaks
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Rating progress not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Rating progress not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get rating progress', { 
@@ -254,7 +254,7 @@ async function getRatingProgress(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'RATING_PROGRESS_FAILED')
+      formatResponse(false, null, error.message, 'RATING_PROGRESS_FAILED')
     );
   }
 }
@@ -281,7 +281,7 @@ async function getCountryLeaderboard(req, res) {
 
     if (!country) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatErrorResponse('Country parameter is required', 'COUNTRY_REQUIRED')
+        formatResponse(false, null, 'Country parameter is required', 'COUNTRY_REQUIRED')
       );
     }
 
@@ -289,7 +289,7 @@ async function getCountryLeaderboard(req, res) {
     // Filter leaderboard by user's country
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Country leaderboards not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Country leaderboards not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get country leaderboard', { 
@@ -298,7 +298,7 @@ async function getCountryLeaderboard(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'COUNTRY_LEADERBOARD_FAILED')
+      formatResponse(false, null, error.message, 'COUNTRY_LEADERBOARD_FAILED')
     );
   }
 }
@@ -326,7 +326,7 @@ async function getAgeGroupLeaderboard(req, res) {
     // Age groups could be: U12, U16, U18, Adult, Senior
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Age group leaderboards not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Age group leaderboards not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get age group leaderboard', { 
@@ -334,7 +334,7 @@ async function getAgeGroupLeaderboard(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'AGE_GROUP_LEADERBOARD_FAILED')
+      formatResponse(false, null, error.message, 'AGE_GROUP_LEADERBOARD_FAILED')
     );
   }
 }
@@ -355,7 +355,7 @@ async function getProvisionalInfo(req, res) {
     // - Rating reliability/uncertainty
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Provisional ratings info not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Provisional ratings info not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to get provisional info', { 
@@ -364,7 +364,7 @@ async function getProvisionalInfo(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'PROVISIONAL_INFO_FAILED')
+      formatResponse(false, null, error.message, 'PROVISIONAL_INFO_FAILED')
     );
   }
 }
@@ -385,7 +385,7 @@ async function compareRatings(req, res) {
 
     if (!user1_id || !user2_id) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatErrorResponse('Both user1_id and user2_id are required', 'USERS_REQUIRED')
+        formatResponse(false, null, 'Both user1_id and user2_id are required', 'USERS_REQUIRED')
       );
     }
 
@@ -397,7 +397,7 @@ async function compareRatings(req, res) {
     // - Rating difference trends
     
     res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatErrorResponse('Rating comparison not yet implemented', 'NOT_IMPLEMENTED')
+      formatResponse(false, null, 'Rating comparison not yet implemented', 'NOT_IMPLEMENTED')
     );
   } catch (error) {
     logger.error('Failed to compare ratings', { 
@@ -406,7 +406,7 @@ async function compareRatings(req, res) {
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatErrorResponse(error.message, 'RATING_COMPARISON_FAILED')
+      formatResponse(false, null, error.message, 'RATING_COMPARISON_FAILED')
     );
   }
 }

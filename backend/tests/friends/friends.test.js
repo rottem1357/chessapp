@@ -1,5 +1,5 @@
 const request = require('supertest');
-const { server } = require('../../server'); // Your main app file
+const { app } = require('../../server'); // Your main app file
 const {
   createTestUser,
   createTestUsers,
@@ -23,7 +23,7 @@ describe('Friends Endpoints', () => {
     });
 
     it('should get user friends list', async () => {
-      const response = await authenticatedRequest(server, user1)
+      const response = await authenticatedRequest(app, user1)
         .get('/api/friends')
         .expect(200);
 
@@ -35,7 +35,7 @@ describe('Friends Endpoints', () => {
     });
 
     it('should fail without authentication', async () => {
-      const response = await request(server)
+      const response = await request(app)
         .get('/api/friends')
         .expect(401);
 
@@ -56,7 +56,7 @@ describe('Friends Endpoints', () => {
         message: 'Hello, let\'s be friends!'
       };
 
-      const response = await authenticatedRequest(server, user1)
+      const response = await authenticatedRequest(app, user1)
         .post('/api/friends/requests')
         .send(requestData)
         .expect(200);
@@ -75,7 +75,7 @@ describe('Friends Endpoints', () => {
         user_id: user2.id
       };
 
-      const response = await authenticatedRequest(server, user1)
+      const response = await authenticatedRequest(app, user1)
         .post('/api/friends/requests')
         .send(requestData)
         .expect(400);
@@ -88,7 +88,7 @@ describe('Friends Endpoints', () => {
         user_id: user1.id
       };
 
-      const response = await authenticatedRequest(server, user1)
+      const response = await authenticatedRequest(app, user1)
         .post('/api/friends/requests')
         .send(requestData)
         .expect(400);
@@ -101,7 +101,7 @@ describe('Friends Endpoints', () => {
         user_id: 'invalid-id'
       };
 
-      const response = await authenticatedRequest(server, user1)
+      const response = await authenticatedRequest(app, user1)
         .post('/api/friends/requests')
         .send(requestData)
         .expect(400);
@@ -119,7 +119,7 @@ describe('Friends Endpoints', () => {
     });
 
     it('should accept friend request', async () => {
-      const response = await authenticatedRequest(server, user2)
+      const response = await authenticatedRequest(app, user2)
         .put(`/api/friends/requests/${friendship.id}`)
         .send({ action: 'accept' })
         .expect(200);
@@ -129,7 +129,7 @@ describe('Friends Endpoints', () => {
     });
 
     it('should decline friend request', async () => {
-      const response = await authenticatedRequest(server, user2)
+      const response = await authenticatedRequest(app, user2)
         .put(`/api/friends/requests/${friendship.id}`)
         .send({ action: 'decline' })
         .expect(200);
@@ -139,7 +139,7 @@ describe('Friends Endpoints', () => {
     });
 
     it('should fail to respond to own request', async () => {
-      const response = await authenticatedRequest(server, user1)
+      const response = await authenticatedRequest(app, user1)
         .put(`/api/friends/requests/${friendship.id}`)
         .send({ action: 'accept' })
         .expect(403);
@@ -148,7 +148,7 @@ describe('Friends Endpoints', () => {
     });
 
     it('should fail with invalid action', async () => {
-      const response = await authenticatedRequest(server, user2)
+      const response = await authenticatedRequest(app, user2)
         .put(`/api/friends/requests/${friendship.id}`)
         .send({ action: 'invalid' })
         .expect(400);
@@ -166,7 +166,7 @@ describe('Friends Endpoints', () => {
     });
 
     it('should remove friend successfully', async () => {
-      const response = await authenticatedRequest(server, user1)
+      const response = await authenticatedRequest(app, user1)
         .delete(`/api/friends/${user2.id}`)
         .expect(200);
 
@@ -179,7 +179,7 @@ describe('Friends Endpoints', () => {
         email: 'user3@example.com'
       });
 
-      const response = await authenticatedRequest(server, user1)
+      const response = await authenticatedRequest(app, user1)
         .delete(`/api/friends/${user3.id}`)
         .expect(404);
 
@@ -203,7 +203,7 @@ describe('Friends Endpoints', () => {
         message: 'Let\'s play!'
       };
 
-      const response = await authenticatedRequest(server, user1)
+      const response = await authenticatedRequest(app, user1)
         .post(`/api/friends/${user2.id}/challenge`)
         .send(challengeData)
         .expect(200);
@@ -225,7 +225,7 @@ describe('Friends Endpoints', () => {
         time_control: '10+0'
       };
 
-      const response = await authenticatedRequest(server, user1)
+      const response = await authenticatedRequest(app, user1)
         .post(`/api/friends/${user3.id}/challenge`)
         .send(challengeData)
         .expect(403);
@@ -239,7 +239,7 @@ describe('Friends Endpoints', () => {
         time_control: 'invalid'
       };
 
-      const response = await authenticatedRequest(server, user1)
+      const response = await authenticatedRequest(app, user1)
         .post(`/api/friends/${user2.id}/challenge`)
         .send(challengeData)
         .expect(400);

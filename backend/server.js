@@ -17,9 +17,7 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { requestLogger } = require('./middleware/requestLogger');
 
 // Import routes
-const gameRoutes = require('./routes/games');
-const aiRoutes = require('./routes/ai');
-const authRoutes = require('./routes/auth');
+const apiRoutes = require('./routes');
 
 // Import services
 const SocketService = require('./services/socketService');
@@ -63,9 +61,7 @@ app.get('/', (req, res) => {
 });
 
 // API routes
-app.use('/api', gameRoutes);
-app.use('/api/ai', aiRoutes);
-app.use('/api/auth', authRoutes);
+app.use('/api', apiRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

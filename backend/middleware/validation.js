@@ -1,7 +1,8 @@
 // middleware/validation.js
 const { body, query, param, validationResult } = require('express-validator');
 const { HTTP_STATUS } = require('../utils/constants');
-const { formatErrorResponse } = require('../utils/helpers');
+const { formatResponse } = require('../utils/helpers');
+const { validators, commonValidations } = require('./validationBuilders');
 
 /**
  * Handle validation errors middleware
@@ -17,7 +18,7 @@ const handleValidationErrors = (req, res, next) => {
     }));
     
     return res.status(HTTP_STATUS.BAD_REQUEST).json(
-      formatErrorResponse('Validation failed', 'VALIDATION_001', { errors: errorMessages })
+      formatResponse(false, { errors: errorMessages }, 'Validation failed', 'VALIDATION_001')
     );
   }
   next();
@@ -358,9 +359,7 @@ const validateCreateGame = [
  * Validate joining a game
  */
 const validateJoinGame = [
-  param('gameId')
-    .isUUID()
-    .withMessage('Game ID must be a valid UUID'),
+  validators.uuidParam('gameId'),
   
   body('password')
     .optional()
@@ -375,9 +374,7 @@ const validateJoinGame = [
  * Validate making a move
  */
 const validateMakeMove = [
-  param('gameId')
-    .isUUID()
-    .withMessage('Game ID must be a valid UUID'),
+  validators.uuidParam('gameId'),
   
   body('move')
     .trim()
@@ -405,18 +402,7 @@ const validateMakeMove = [
  * Validate game query parameters
  */
 const validateGameQuery = [
-  query('page')
-    .optional()
-    .isInt({ min: 1, max: 1000 })
-    .withMessage('Page must be between 1-1000')
-    .toInt(),
-  
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 50 })
-    .withMessage('Limit must be between 1-50')
-    .toInt(),
-  
+  ...commonValidations.pagination,
   query('game_type')
     .optional()
     .isIn(['rapid', 'blitz', 'bullet', 'classical', 'correspondence'])
@@ -439,9 +425,7 @@ const validateGameQuery = [
  * Validate draw action
  */
 const validateDrawAction = [
-  param('gameId')
-    .isUUID()
-    .withMessage('Game ID must be a valid UUID'),
+  validators.uuidParam('gameId'),
   
   body('action')
     .isIn(['accept', 'decline'])
@@ -785,32 +769,10 @@ const validateAdminQuery = [
 // =============================================================================
 
 /**
- * Validate UUID parameter
- */
-const validateUUIDParam = (paramName) => [
-  param(paramName)
-    .isUUID()
-    .withMessage(`${paramName} must be a valid UUID`),
-  
-  handleValidationErrors
-];
-
-/**
  * Validate pagination query parameters
  */
 const validatePagination = [
-  query('page')
-    .optional()
-    .isInt({ min: 1, max: 1000 })
-    .withMessage('Page must be between 1-1000')
-    .toInt(),
-  
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1-100')
-    .toInt(),
-  
+  ...commonValidations.pagination,
   handleValidationErrors
 ];
 
@@ -867,6 +829,5 @@ module.exports = {
   validateAdminQuery,
   
   // Utilities
-  validateUUIDParam,
   validatePagination
 };
