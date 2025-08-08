@@ -2,9 +2,8 @@ const request = require('supertest');
 const app = require('../../server'); // Your main app file
 const db = require('../../models');
 const {
-const { server } = require('../../server'); // Your main app file
+  createTestUser,
   expectValidResponse,
-const { server } = require('../../server');
   expectErrorResponse
 } = require('../helpers/testHelpers');
 
@@ -16,16 +15,18 @@ describe('Authentication Endpoints', () => {
         username: 'newuser',
         email: 'newuser@example.com',
         password: 'Password123!',
-const { server } = require('../../server'); // Your main app file
-const db = require('../../models');
-const {
-const { server } = require('../../server');
-const db = require('../../models');
-const {
-  createTestUser,
-  expectValidResponse,
-  expectErrorResponse
-} = require('../helpers/testHelpers');
+        display_name: 'New User',
+        country: 'US'
+      };
+
+      const response = await request(app)
+        .post('/api/auth/register')
+        .send(userData)
+        .expect(201);
+
+      expectValidResponse(response);
+      expect(response.body.data).toHaveProperty('id');
+      expect(response.body.data).toHaveProperty('username', userData.username);
       expect(response.body.data).toHaveProperty('email', userData.email);
       expect(response.body.data).not.toHaveProperty('password_hash');
     });
@@ -37,8 +38,8 @@ const {
         username: 'existinguser',
         email: 'different@example.com',
         password: 'Password123!'
-      const response = await request(server)
-      const response = await request(server)
+      };
+
       const response = await request(app)
         .post('/api/auth/register')
         .send(userData)
@@ -52,7 +53,7 @@ const {
         username: 'newuser',
         email: 'invalid-email',
         password: 'Password123!'
-      const response = await request(server)
+      };
 
       const response = await request(app)
         .post('/api/auth/register')
@@ -66,8 +67,8 @@ const {
       const userData = {
         username: 'newuser',
         email: 'newuser@example.com',
-      const response = await request(server)
-      const response = await request(server)
+        password: 'weak'
+      };
 
       const response = await request(app)
         .post('/api/auth/register')
@@ -84,8 +85,8 @@ const {
         username: 'loginuser',
         email: 'login@example.com'
       });
-      const response = await request(server)
-      const response = await request(server)
+    });
+
     it('should login with username successfully', async () => {
       const response = await request(app)
         .post('/api/auth/login')
@@ -99,8 +100,8 @@ const {
       expect(response.body.data).toHaveProperty('token');
       expect(response.body.data).toHaveProperty('user');
       expect(response.body.data.user).toHaveProperty('username', 'loginuser');
-      const response = await request(server)
-      const response = await request(server)
+    });
+
     it('should login with email successfully', async () => {
       const response = await request(app)
         .post('/api/auth/login')
@@ -112,8 +113,8 @@ const {
 
       expectValidResponse(response);
       expect(response.body.data).toHaveProperty('token');
-      const response = await request(server)
-      const response = await request(server)
+    });
+
     it('should fail with wrong password', async () => {
       const response = await request(app)
         .post('/api/auth/login')
@@ -124,8 +125,8 @@ const {
         .expect(401);
 
       expectErrorResponse(response, 'LOGIN_FAILED');
-      const response = await request(server)
-      const response = await request(server)
+    });
+
     it('should fail with non-existent user', async () => {
       const response = await request(app)
         .post('/api/auth/login')
@@ -145,8 +146,8 @@ const {
     beforeEach(async () => {
       user = await createTestUser();
       token = generateToken(user.id);
-      const response = await request(server)
-      const response = await request(server)
+    });
+
     it('should get current user profile', async () => {
       const response = await request(app)
         .get('/api/auth/me')
@@ -157,16 +158,16 @@ const {
       expect(response.body.data).toHaveProperty('id', user.id);
       expect(response.body.data).toHaveProperty('username', user.username);
       expect(response.body.data).not.toHaveProperty('password_hash');
-      const response = await request(server)
-      const response = await request(server)
+    });
+
     it('should fail without token', async () => {
       const response = await request(app)
         .get('/api/auth/me')
         .expect(401);
 
       expectErrorResponse(response);
-      const response = await request(server)
-      const response = await request(server)
+    });
+
     it('should fail with invalid token', async () => {
       const response = await request(app)
         .get('/api/auth/me')
@@ -183,8 +184,8 @@ const {
     beforeEach(async () => {
       user = await createTestUser();
       token = generateToken(user.id);
-      const response = await request(server)
-      const response = await request(server)
+    });
+
     it('should logout successfully', async () => {
       const response = await request(app)
         .post('/api/auth/logout')
@@ -192,8 +193,8 @@ const {
         .expect(200);
 
       expectValidResponse(response);
-      const response = await request(server)
-      const response = await request(server)
+    });
+
     it('should fail without token', async () => {
       const response = await request(app)
         .post('/api/auth/logout')
@@ -208,8 +209,8 @@ const {
       await createTestUser({
         email: 'reset@example.com'
       });
-      const response = await request(server)
-      const response = await request(server)
+    });
+
     it('should request password reset successfully', async () => {
       const response = await request(app)
         .post('/api/auth/password-reset/request')
@@ -219,8 +220,8 @@ const {
         .expect(200);
 
       expectValidResponse(response);
-      const response = await request(server)
-      const response = await request(server)
+    });
+
     it('should handle non-existent email gracefully', async () => {
       const response = await request(app)
         .post('/api/auth/password-reset/request')
@@ -230,8 +231,8 @@ const {
         .expect(200);
 
       expectValidResponse(response);
-      const response = await request(server)
-      const response = await request(server)
+    });
+
     it('should fail with invalid email format', async () => {
       const response = await request(app)
         .post('/api/auth/password-reset/request')

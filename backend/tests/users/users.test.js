@@ -1,7 +1,7 @@
 const request = require('supertest');
 const app = require('../../server');
-const {
 const { server } = require('../../server');
+const {
   createTestUser,
   createTestUsers,
   authenticatedRequest,

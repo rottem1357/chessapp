@@ -20,7 +20,7 @@ const config = {
     port: process.env.DB_PORT || 5432,
     name: process.env.DB_NAME || 'chessapp',
     user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '',
+    password: process.env.DB_PASSWORD || '1234',
     ssl: process.env.DB_SSL === 'true'
   },
 

@@ -229,6 +229,7 @@ const PUZZLE_THEMES = {
   MATE_IN_1: 'mate_in_1',
   MATE_IN_2: 'mate_in_2',
   MATE_IN_3: 'mate_in_3',
+  MATE_IN_4: 'mate_in_4',
   ENDGAME: 'endgame',
   OPENING: 'opening',
   MIDDLEGAME: 'middlegame',

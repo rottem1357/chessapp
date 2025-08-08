@@ -1,13 +1,11 @@
 // routes/games.js
 const express = require('express');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { 
-  validateCreateGame, 
-  validateJoinGame, 
-  validateMakeMove, 
+const { validateCreateGame,
+  validateJoinGame,
+  validateMakeMove,
   validateGameQuery,
-  validateDrawAction 
-} = require('../middleware/validation');
+  validateDrawAction } = require('../middleware/validation');
 const gameController = require('../controllers/gameController');
 const verifyToken = require('../middleware/verifyToken');
 const optionalAuth = require('../middleware/optionalAuth');
