@@ -44,6 +44,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.BOOLEAN,
         defaultValue: true
     },
+    highlight_moves: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
+    },
     show_legal_moves: {
         type: DataTypes.BOOLEAN,
         defaultValue: true

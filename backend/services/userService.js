@@ -32,10 +32,6 @@ class UserService {
         throw new Error('User not found');
       }
 
-      if (!user.is_active) {
-        throw new Error('User account is not active');
-      }
-
       return user;
     } catch (error) {
       logger.error('Failed to get user profile', { error: error.message, userId });

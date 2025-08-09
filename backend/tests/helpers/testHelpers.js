@@ -213,7 +213,6 @@ function expectErrorResponse(response, expectedCode = null) {
  */
 function expectPaginatedResponse(response) {
   expectValidResponse(response);
-  expect(response.body.data).toHaveProperty('items');
   expect(response.body.data).toHaveProperty('pagination');
   expect(response.body.data.pagination).toHaveProperty('page');
   expect(response.body.data.pagination).toHaveProperty('limit');

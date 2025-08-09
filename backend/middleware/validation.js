@@ -1,4 +1,5 @@
 // middleware/validation.js
+const { isUUID } = require('validator');
 const { body, query, param, validationResult } = require('express-validator');
 const { HTTP_STATUS } = require('../utils/constants');
 const { formatResponse } = require('../utils/helpers');
@@ -25,6 +26,13 @@ const handleValidationErrors = (req, res, next) => {
 };
 
 // =============================================================================
+/**
+ * Validate userId route param as UUID
+ */
+const validateUserIdParam = [
+  param('userId').isUUID().withMessage('Invalid user ID format'),
+  handleValidationErrors
+];
 // AUTHENTICATION VALIDATIONS
 // =============================================================================
 
@@ -179,8 +187,8 @@ const validateUserSearch = [
     .trim()
     .notEmpty()
     .withMessage('Search query is required')
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Search query must be between 2-50 characters')
+    .isLength({ min: 3, max: 50 })
+    .withMessage('Search query must be between 3-50 characters')
     .matches(/^[a-zA-Z0-9\s\-_.]+$/)
     .withMessage('Search query contains invalid characters'),
   
@@ -227,7 +235,12 @@ const validateUserPreferences = [
     .optional()
     .isBoolean()
     .withMessage('Show coordinates must be a boolean'),
-  
+
+  body('highlight_moves')
+    .optional()
+    .isBoolean()
+    .withMessage('Highlight moves must be a boolean'),
+
   body('show_legal_moves')
     .optional()
     .isBoolean()
@@ -665,6 +678,22 @@ const validateGameChallenge = [
 
 // =============================================================================
 // RATING VALIDATIONS
+/**
+ * Validate rating history query
+ */
+const validateRatingHistoryQuery = [
+  param('userId').isUUID().withMessage('Invalid user ID format'),
+  query('rating_type')
+    .optional()
+    .isIn(['blitz', 'bullet', 'rapid', 'puzzle'])
+    .withMessage('Invalid rating type'),
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1-100')
+    .toInt(),
+  handleValidationErrors
+];
 // =============================================================================
 
 /**
@@ -794,6 +823,7 @@ module.exports = {
   validateUpdateProfile,
   validateUserSearch,
   validateUserPreferences,
+  validateUserIdParam,
   
   // Game management
   validateCreateGame,
@@ -821,6 +851,7 @@ module.exports = {
   
   // Ratings
   validateLeaderboardQuery,
+  validateRatingHistoryQuery,
   
   // Openings
   validateOpeningQuery,
