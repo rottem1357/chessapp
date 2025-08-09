@@ -14,6 +14,7 @@
     "test:users": "jest tests/users --detectOpenHandles --forceExit",
     "test:puzzles": "jest tests/puzzles --detectOpenHandles --forceExit",
     "test:friends": "jest tests/friends --detectOpenHandles --forceExit",
+    "test:matchmaking": "jest tests/matchmaking --detectOpenHandles --forceExit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "docs": "node scripts/generateDocs.js"
