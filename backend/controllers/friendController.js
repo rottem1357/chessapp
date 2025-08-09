@@ -10,14 +10,22 @@ const logger = require('../utils/logger');
 async function getFriends(req, res) {
   try {
     const userId = req.user.id;
-    const { status = 'accepted' } = req.query;
 
     logger.info('Friends list request', { 
       userId, 
-      status
+      status: 'accepted'
     });
 
-    const result = await friendService.getFriends(userId, status);
+    // Get both friends and pending requests
+    const [friends, pendingRequests] = await Promise.all([
+      friendService.getFriends(userId, 'accepted'),
+      friendService.getPendingRequests(userId)
+    ]);
+
+    const result = {
+      friends,
+      pendingRequests
+    };
 
     res.status(HTTP_STATUS.OK).json(
       formatResponse(true, result, 'Friends list retrieved successfully')
@@ -119,7 +127,7 @@ async function respondToFriendRequest(req, res) {
     const statusCode = error.message.includes('not found') ? 
       HTTP_STATUS.NOT_FOUND : 
       error.message.includes('not authorized') || error.message.includes('no longer') ? 
-      HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
+      HTTP_STATUS.FORBIDDEN : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
     res.status(statusCode).json(
       formatResponse(false, null, error.message, 'FRIEND_RESPONSE_FAILED')
@@ -199,7 +207,7 @@ async function challengeFriend(req, res) {
       invitationId: result.invitationId
     });
 
-    res.status(HTTP_STATUS.CREATED).json(
+    res.status(HTTP_STATUS.OK).json(
       formatResponse(true, result, 'Challenge sent successfully')
     );
   } catch (error) {
@@ -211,7 +219,7 @@ async function challengeFriend(req, res) {
     });
 
     const statusCode = error.message.includes('not friends') ? 
-      HTTP_STATUS.BAD_REQUEST : 
+      HTTP_STATUS.FORBIDDEN : 
       error.message.includes('not found') ? 
       HTTP_STATUS.NOT_FOUND : HTTP_STATUS.INTERNAL_SERVER_ERROR;
 

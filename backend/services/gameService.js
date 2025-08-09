@@ -1,17 +1,21 @@
 // services/gameService.js
 const { Chess } = require('chess.js');
-const db = require('../models');
 const logger = require('../utils/logger');
 
 class GameService {
+  // Get database instance with lazy loading
+  get db() {
+    return require('../models');
+  }
+
   /**
    * Create a new game
    */
   async createGame(userId, gameData) {
-    const transaction = await db.sequelize.transaction();
+    const transaction = await this.db.sequelize.transaction();
     
     try {
-      const user = await db.User.findByPk(userId, { transaction });
+      const user = await this.db.User.findByPk(userId, { transaction });
       if (!user) {
         throw new Error('User not found');
       }
@@ -22,7 +26,7 @@ class GameService {
       const incrementSeconds = gameData.increment_seconds || increment;
 
       // Create game
-      const game = await db.Game.create({
+      const game = await this.db.Game.create({
         game_type: gameData.game_type || 'rapid',
         time_control: gameData.time_control || '10+0',
         time_limit_seconds: timeLimit,
@@ -45,7 +49,7 @@ class GameService {
       const currentRating = user[ratingField] || user.rating_rapid;
 
       // Create player
-      await db.Player.create({
+      await this.db.Player.create({
         game_id: game.id,
         user_id: userId,
         color: color,
@@ -68,15 +72,15 @@ class GameService {
    * Join an existing game
    */
   async joinGame(gameId, userId, password = null) {
-    const transaction = await db.sequelize.transaction();
+    const transaction = await this.db.sequelize.transaction();
     
     try {
-      const game = await db.Game.findByPk(gameId, {
+      const game = await this.db.Game.findByPk(gameId, {
         include: [{
-          model: db.Player,
+          model: this.db.Player,
           as: 'players',
           include: [{ 
-            model: db.User, 
+            model: this.db.User, 
             as: 'user',
             attributes: ['id', 'username', 'display_name']
           }]
@@ -106,7 +110,7 @@ class GameService {
         throw new Error('You are already in this game');
       }
 
-      const user = await db.User.findByPk(userId, { transaction });
+      const user = await this.db.User.findByPk(userId, { transaction });
       if (!user) {
         throw new Error('User not found');
       }
@@ -119,7 +123,7 @@ class GameService {
       const currentRating = user[ratingField] || user.rating_rapid;
 
       // Create player
-      await db.Player.create({
+      await this.db.Player.create({
         game_id: gameId,
         user_id: userId,
         color: newColor,
@@ -127,7 +131,7 @@ class GameService {
       }, { transaction });
 
       // Start the game
-      await db.Game.update({
+      await this.db.Game.update({
         status: 'active',
         started_at: new Date()
       }, {
@@ -151,15 +155,15 @@ class GameService {
    * Make a move in a game
    */
   async makeMove(gameId, userId, moveData) {
-    const transaction = await db.sequelize.transaction();
+    const transaction = await this.db.sequelize.transaction();
     
     try {
-      const game = await db.Game.findByPk(gameId, {
+      const game = await this.db.Game.findByPk(gameId, {
         include: [{
-          model: db.Player,
+          model: this.db.Player,
           as: 'players',
           include: [{ 
-            model: db.User, 
+            model: this.db.User, 
             as: 'user',
             attributes: ['id', 'username', 'display_name']
           }]
@@ -203,7 +207,7 @@ class GameService {
       const moveNumber = Math.ceil((game.move_count + 1) / 2);
 
       // Record move in database
-      const dbMove = await db.Move.create({
+      const dbMove = await this.db.Move.create({
         game_id: gameId,
         player_id: player.id,
         move_number: moveNumber,
@@ -247,7 +251,7 @@ class GameService {
         }
 
         // Update move with remaining time
-        await db.Move.update(
+        await this.db.Move.update(
           { time_remaining_ms: newTimeRemaining },
           { where: { id: dbMove.id }, transaction }
         );
@@ -267,12 +271,12 @@ class GameService {
             game.players.find(p => p.color === 'black').id :
             game.players.find(p => p.color === 'white').id;
           
-          await db.Player.update({ is_winner: true }, {
+          await this.db.Player.update({ is_winner: true }, {
             where: { id: winnerId },
             transaction
           });
-          await db.Player.update({ is_winner: false }, {
-            where: { id: { [db.Sequelize.Op.ne]: winnerId }, game_id: gameId },
+          await this.db.Player.update({ is_winner: false }, {
+            where: { id: { [this.db.Sequelize.Op.ne]: winnerId }, game_id: gameId },
             transaction
           });
           
@@ -296,7 +300,7 @@ class GameService {
         }
       }
 
-      await db.Game.update(updateData, {
+      await this.db.Game.update(updateData, {
         where: { id: gameId },
         transaction
       });
@@ -337,15 +341,15 @@ class GameService {
    * Resign from a game
    */
   async resignGame(gameId, userId) {
-    const transaction = await db.sequelize.transaction();
+    const transaction = await this.db.sequelize.transaction();
     
     try {
-      const game = await db.Game.findByPk(gameId, {
+      const game = await this.db.Game.findByPk(gameId, {
         include: [{
-          model: db.Player,
+          model: this.db.Player,
           as: 'players',
           include: [{ 
-            model: db.User, 
+            model: this.db.User, 
             as: 'user',
             attributes: ['id', 'username', 'display_name']
           }]
@@ -371,7 +375,7 @@ class GameService {
       const result = player.color === 'white' ? 'black_wins' : 'white_wins';
 
       // Update game
-      await db.Game.update({
+      await this.db.Game.update({
         status: 'finished',
         result: result,
         result_reason: 'resignation',
@@ -382,11 +386,11 @@ class GameService {
       });
 
       // Update player records
-      await db.Player.update({ is_winner: true }, {
+      await this.db.Player.update({ is_winner: true }, {
         where: { id: opponent.id },
         transaction
       });
-      await db.Player.update({ is_winner: false }, {
+      await this.db.Player.update({ is_winner: false }, {
         where: { id: player.id },
         transaction
       });
@@ -413,9 +417,9 @@ class GameService {
    */
   async offerDraw(gameId, userId) {
     try {
-      const game = await db.Game.findByPk(gameId, {
+      const game = await this.db.Game.findByPk(gameId, {
         include: [{
-          model: db.Player,
+          model: this.db.Player,
           as: 'players'
         }]
       });
@@ -447,12 +451,12 @@ class GameService {
    * Respond to a draw offer
    */
   async respondToDraw(gameId, userId, action) {
-    const transaction = await db.sequelize.transaction();
+    const transaction = await this.db.sequelize.transaction();
     
     try {
-      const game = await db.Game.findByPk(gameId, {
+      const game = await this.db.Game.findByPk(gameId, {
         include: [{
-          model: db.Player,
+          model: this.db.Player,
           as: 'players'
         }],
         transaction
@@ -473,7 +477,7 @@ class GameService {
 
       if (action === 'accept') {
         // Accept draw
-        await db.Game.update({
+        await this.db.Game.update({
           status: 'finished',
           result: 'draw',
           result_reason: 'mutual_agreement',
@@ -484,7 +488,7 @@ class GameService {
         });
 
         // Mark both players as having no winner (draw)
-        await db.Player.update({ is_winner: null }, {
+        await this.db.Player.update({ is_winner: null }, {
           where: { game_id: gameId },
           transaction
         });
@@ -517,25 +521,25 @@ class GameService {
    */
   async getGameById(gameId) {
     try {
-      const game = await db.Game.findByPk(gameId, {
+      const game = await this.db.Game.findByPk(gameId, {
         include: [
           {
-            model: db.Player,
+            model: this.db.Player,
             as: 'players',
             include: [{
-              model: db.User,
+              model: this.db.User,
               as: 'user',
               attributes: ['id', 'username', 'display_name', 'rating_rapid', 'rating_blitz', 'rating_bullet']
             }]
           },
           {
-            model: db.Move,
+            model: this.db.Move,
             as: 'moves',
             order: [['created_at', 'ASC']],
             limit: 200 // Limit moves for performance
           },
           {
-            model: db.Opening,
+            model: this.db.Opening,
             as: 'opening',
             attributes: ['id', 'eco_code', 'name', 'variation']
           }
@@ -595,13 +599,13 @@ class GameService {
         whereClause.is_private = false;
       }
 
-      const { count, rows } = await db.Game.findAndCountAll({
+      const { count, rows } = await this.db.Game.findAndCountAll({
         where: whereClause,
         include: [{
-          model: db.Player,
+          model: this.db.Player,
           as: 'players',
           include: [{
-            model: db.User,
+            model: this.db.User,
             as: 'user',
             attributes: ['id', 'username', 'display_name', 'rating_rapid', 'rating_blitz', 'rating_bullet']
           }]
@@ -637,14 +641,20 @@ class GameService {
    */
   async getMoveHistory(gameId) {
     try {
-      const moves = await db.Move.findAll({
+      // First check if the game exists
+      const game = await this.db.Game.findByPk(gameId);
+      if (!game) {
+        throw new Error('Game not found');
+      }
+
+      const moves = await this.db.Move.findAll({
         where: { game_id: gameId },
         order: [['created_at', 'ASC']],
         include: [{
-          model: db.Player,
+          model: this.db.Player,
           as: 'player',
           include: [{
-            model: db.User,
+            model: this.db.User,
             as: 'user',
             attributes: ['id', 'username', 'display_name']
           }]
@@ -663,9 +673,9 @@ class GameService {
    */
   async getGameOpening(gameId) {
     try {
-      const game = await db.Game.findByPk(gameId, {
+      const game = await this.db.Game.findByPk(gameId, {
         include: [{
-          model: db.Opening,
+          model: this.db.Opening,
           as: 'opening'
         }]
       });
@@ -694,7 +704,7 @@ class GameService {
    */
   async detectGameOpening(gameId) {
     try {
-      const moves = await db.Move.findAll({
+      const moves = await this.db.Move.findAll({
         where: { game_id: gameId },
         order: [['move_number', 'ASC'], ['color', 'ASC']],
         limit: 20 // First 10 moves for each side
@@ -708,10 +718,10 @@ class GameService {
       const moveString = moves.map(move => move.san).join(' ');
 
       // Find matching opening
-      const opening = await db.Opening.findOne({
+      const opening = await this.db.Opening.findOne({
         where: {
           moves: {
-            [db.Sequelize.Op.like]: `${moveString.substring(0, 20)}%`
+            [this.db.Sequelize.Op.like]: `${moveString.substring(0, 20)}%`
           }
         },
         order: [['move_count', 'DESC']] // Get most specific match
@@ -719,15 +729,15 @@ class GameService {
 
       if (opening) {
         // Update game with detected opening
-        await db.Game.update({
+        await this.db.Game.update({
           opening_id: opening.id
         }, {
           where: { id: gameId }
         });
 
         // Update opening popularity
-        await db.Opening.update({
-          popularity: db.Sequelize.literal('popularity + 1')
+        await this.db.Opening.update({
+          popularity: this.db.Sequelize.literal('popularity + 1')
         }, {
           where: { id: opening.id }
         });
@@ -748,7 +758,7 @@ class GameService {
   async updatePlayerStatsAndRatings(game, result, transaction) {
     try {
       for (const player of game.players) {
-        const user = await db.User.findByPk(player.user_id, { transaction });
+        const user = await this.db.User.findByPk(player.user_id, { transaction });
         if (!user) continue;
 
         // Determine result for this player
@@ -777,7 +787,7 @@ class GameService {
           statUpdates.games_drawn = user.games_drawn + 1;
         }
 
-        await db.User.update(statUpdates, {
+        await this.db.User.update(statUpdates, {
           where: { id: player.user_id },
           transaction
         });
@@ -795,7 +805,7 @@ class GameService {
           const ratingField = `rating_${game.game_type}`;
 
           // Update user rating
-          await db.User.update({
+          await this.db.User.update({
             [ratingField]: newRating
           }, {
             where: { id: player.user_id },
@@ -803,7 +813,7 @@ class GameService {
           });
 
           // Update player record
-          await db.Player.update({
+          await this.db.Player.update({
             rating_after: newRating,
             rating_change: ratingChange
           }, {
@@ -812,7 +822,7 @@ class GameService {
           });
 
           // Record rating history
-          await db.Rating.create({
+          await this.db.Rating.create({
             user_id: player.user_id,
             game_id: game.id,
             rating_type: game.game_type,

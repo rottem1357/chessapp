@@ -355,11 +355,20 @@ const validateCreateGame = [
     .optional()
     .trim()
     .isLength({ min: 1, max: 50 })
-    .withMessage('Password must be between 1-50 characters')
-    .if(body('is_private').equals(true))
-    .notEmpty()
-    .withMessage('Password is required for private games'),
+    .withMessage('Password must be between 1-50 characters'),
   
+  // Custom validation for private games requiring password
+  body('is_private')
+    .optional()
+    .isBoolean()
+    .withMessage('Is private must be a boolean')
+    .custom((value, { req }) => {
+      if (value === true && (!req.body.password || req.body.password.trim() === '')) {
+        throw new Error('Password is required for private games');
+      }
+      return true;
+    }),
+
   body('preferred_color')
     .optional()
     .isIn(['white', 'black', 'random'])

@@ -21,7 +21,7 @@ export const gameApi = {
    */
   async createGame(gameData) {
     return handleApiResponse(
-      api.post(API_ENDPOINTS.GAMES, gameData)
+      api.post(`${API_ENDPOINTS.GAMES}`, gameData)
     );
   },
 

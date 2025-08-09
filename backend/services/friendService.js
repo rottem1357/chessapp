@@ -59,6 +59,8 @@ class FriendService {
 
       return {
         id: friendship.id,
+        requester_id: requesterId,
+        addressee_id: addresseeId,
         status: 'pending',
         message: 'Friend request sent successfully'
       };
@@ -234,6 +236,10 @@ class FriendService {
 
       return {
         invitationId: invitation.id,
+        inviter_id: challengerId,
+        invitee_id: friendId,
+        game_type: challengeData.game_type,
+        time_control: challengeData.time_control,
         message: 'Challenge sent successfully'
       };
     } catch (error) {
