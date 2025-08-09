@@ -59,7 +59,7 @@ describe('Friends Endpoints', () => {
       const response = await authenticatedRequest(app, user1)
         .post('/api/friends/requests')
         .send(requestData)
-        .expect(200);
+        .expect(201);
 
       expectValidResponse(response);
       expect(response.body.data).toHaveProperty('requester_id', user1.id);

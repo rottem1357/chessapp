@@ -20,6 +20,15 @@ export const API_ENDPOINTS = {
   WEBSOCKET: '/socket.io',
 };
 
+// Application Routes
+export const ROUTES = {
+  HOME: '/',
+  GAME: '/game/:gameId',
+  LOCAL_GAME: '/local-game',
+  AI_GAME: '/ai-game/:gameId',
+  MULTIPLAYER_GAME: '/multiplayer/:gameId',
+};
+
 // Game Status Constants
 export const GAME_STATUS = {
   ACTIVE: 'active',
@@ -123,6 +132,8 @@ export const ERROR_MESSAGES = {
   GAME_NOT_FOUND: 'Game not found. Please check the game ID.',
   PLAYER_NAME_REQUIRED: 'Please enter your name to continue.',
   CONNECTION_LOST: 'Connection lost. Attempting to reconnect...',
+  CONNECTION_REQUIRED: 'Connection to server required for multiplayer games.',
+  QUEUE_ERROR: 'Failed to join matchmaking queue. Please try again.',
   OPPONENT_DISCONNECTED: 'Your opponent has disconnected.',
   SERVER_ERROR: 'Server error. Please try again later.',
   TIMEOUT_ERROR: 'Request timeout. Please try again.',
@@ -195,4 +206,3 @@ export const FEATURE_FLAGS = {
   ENABLE_OFFLINE_MODE: true,
   ENABLE_AI_HINTS: false,
 };
-

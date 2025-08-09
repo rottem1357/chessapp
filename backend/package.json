@@ -12,6 +12,8 @@
     "test:auth": "jest tests/auth --detectOpenHandles --forceExit",
     "test:games": "jest tests/games --detectOpenHandles --forceExit",
     "test:users": "jest tests/users --detectOpenHandles --forceExit",
+    "test:puzzles": "jest tests/puzzles --detectOpenHandles --forceExit",
+    "test:friends": "jest tests/friends --detectOpenHandles --forceExit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "docs": "node scripts/generateDocs.js"
