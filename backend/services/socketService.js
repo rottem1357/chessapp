@@ -11,6 +11,16 @@ const {
 } = require('../utils/helpers');
 const logger = require('../utils/logger');
 const gameService = require('./gameService');
+const jwt = require('jsonwebtoken');
+const config = require('../config');
+
+// Get matchmaking service instance
+let matchmakingService;
+try {
+  matchmakingService = require('./matchmakingService');
+} catch (error) {
+  logger.error('Failed to load matchmaking service', { error: error.message });
+}
 
 class SocketService {
   constructor(io) {
@@ -19,6 +29,11 @@ class SocketService {
     this.playerSockets = new Map(); // playerId -> socketId
     
     this.setupEventHandlers();
+    
+    // Register this socket service with matchmaking service for callbacks
+    if (matchmakingService && typeof matchmakingService.setSocketService === 'function') {
+      matchmakingService.setSocketService(this);
+    }
   }
 
   /**
@@ -37,8 +52,53 @@ class SocketService {
   handleConnection(socket) {
     logger.info('User connected', { socketId: socket.id, ip: socket.handshake.address });
 
+    // Authenticate socket connection
+    const token = socket.handshake.auth.token;
+    if (!token) {
+      logger.warn('Socket connection without token', { socketId: socket.id });
+      socket.emit(SOCKET_EVENTS.ERROR, formatResponse(false, null, 'Authentication required'));
+      socket.disconnect();
+      return;
+    }
+
+    // Verify JWT token
+    try {
+      const decoded = jwt.verify(token, config.jwt.secret);
+      socket.userId = decoded.id;  // JWT contains 'id' not 'userId'
+      socket.username = decoded.username;
+      
+      // Store player data in connectedPlayers Map
+      const playerData = {
+        id: socket.userId,
+        username: socket.username,
+        socketId: socket.id
+      };
+      
+      this.connectedPlayers.set(socket.id, playerData);
+      this.playerSockets.set(socket.userId, socket.id);
+      
+      logger.info('Socket authenticated and player stored', { 
+        socketId: socket.id, 
+        userId: decoded.id, 
+        username: decoded.username 
+      });
+    } catch (error) {
+      logger.warn('Socket authentication failed', { 
+        socketId: socket.id, 
+        error: error.message 
+      });
+      socket.emit(SOCKET_EVENTS.ERROR, formatResponse(false, null, 'Invalid authentication token'));
+      socket.disconnect();
+      return;
+    }
+
     // Join queue event
     socket.on(SOCKET_EVENTS.JOIN_QUEUE, (playerData) => {
+      logger.info('JOIN_QUEUE event received', { 
+        socketId: socket.id, 
+        userId: socket.userId, 
+        playerData 
+      });
       this.handleJoinQueue(socket, playerData);
     });
 
@@ -77,40 +137,70 @@ class SocketService {
    * @param {Object} socket - Socket instance
    * @param {Object} playerData - Player information
    */
-  handleJoinQueue(socket, playerData) {
+  async handleJoinQueue(socket, playerData) {
     try {
-      const player = {
-        id: socket.id,
-        name: sanitizePlayerName(playerData.name) || `Player ${socket.id.substring(0, 6)}`,
-        rating: playerData.rating || 1200,
-        socketId: socket.id
+      if (!socket.userId) {
+        socket.emit(SOCKET_EVENTS.ERROR, 
+          formatResponse(false, null, 'Authentication required')
+        );
+        return;
+      }
+
+      const queueData = {
+        game_type: playerData.gameType || 'rapid',
+        time_control: playerData.timeControl || '10+0',
+        rating_range: playerData.ratingRange || null
       };
 
-      // Store player connection
-      this.connectedPlayers.set(socket.id, player);
-      this.playerSockets.set(player.id, socket.id);
+      // Store socket connection mapping
+      this.playerSockets.set(socket.userId, socket.id);
+      
+      logger.info('User joining queue', { 
+        userId: socket.userId, 
+        username: socket.username,
+        gameType: queueData.game_type,
+        playerData: playerData
+      });
 
-      // Join matchmaking queue
-      const result = gameService.joinMatchmakingQueue(player);
+      // Join matchmaking queue using the correct service
+      const result = await matchmakingService.joinQueue(socket.userId, queueData);
 
-      if (result.gameId) {
-        // Game was created
-        this.notifyGameStart(result);
+      logger.info('Queue join result', { 
+        userId: socket.userId,
+        result: result,
+        hasGame: !!result.game
+      });
+
+      if (result.game) {
+        // Game was created immediately (found match)
+        logger.info('Match found - notifying players', { 
+          gameId: result.game.id,
+          userId: socket.userId 
+        });
+        this.notifyGameStart(result.game);
       } else {
-        // Added to queue
+        // Added to queue successfully
+        logger.info('Player added to queue', { 
+          userId: socket.userId,
+          position: result.position
+        });
+        
         socket.emit(SOCKET_EVENTS.QUEUE_JOINED, {
-          position: result.queuePosition,
-          estimatedWaitTime: result.estimatedWaitTime
+          position: result.position,
+          estimatedWaitTime: result.estimatedWaitTime,
+          message: result.message
         });
       }
 
-      logger.info('Player joined queue', { 
-        playerId: player.id, 
-        playerName: player.name 
+      logger.info('Player joined queue successfully', { 
+        userId: socket.userId, 
+        username: socket.username,
+        position: result.position 
       });
     } catch (error) {
       logger.error('Error joining queue', { 
         error: error.message, 
+        userId: socket.userId,
         socketId: socket.id 
       });
       
@@ -125,27 +215,32 @@ class SocketService {
    * @param {Object} socket - Socket instance
    * @param {Object} data - Move data
    */
-  handleMakeMove(socket, data) {
+  async handleMakeMove(socket, data) {
     try {
+      console.log('🎯 Received make-move:', data);
       const { gameId, move } = data;
       const player = this.connectedPlayers.get(socket.id);
       
       if (!player) {
+        console.log('❌ Player not found in connectedPlayers:', socket.id);
         socket.emit(SOCKET_EVENTS.ERROR, 
           formatResponse(false, null, 'Player not found')
         );
         return;
       }
 
-      const result = gameService.makeMove(gameId, player.id, move);
+      console.log('🎮 Processing move for player:', player.id, 'game:', gameId);
+      const result = await gameService.makeMove(gameId, player.id, { move });
 
       if (result.error) {
+        console.log('❌ Move error:', result.error);
         socket.emit(SOCKET_EVENTS.INVALID_MOVE, 
           formatResponse(false, null, result.error)
         );
         return;
       }
 
+      console.log('✅ Move successful, broadcasting to game');
       // Broadcast move to all players in the game
       this.broadcastToGame(gameId, SOCKET_EVENTS.MOVE_MADE, {
         move: result.move,
@@ -153,7 +248,7 @@ class SocketService {
       });
 
       // Check for game end
-      if (result.gameState.isGameOver) {
+      if (result.gameState && result.gameState.isGameOver) {
         this.broadcastToGame(gameId, SOCKET_EVENTS.GAME_ENDED, {
           reason: result.gameState.status,
           winner: result.gameState.winner,
@@ -161,10 +256,10 @@ class SocketService {
         });
       }
 
-      logger.info('Move made', { 
+      logger.info('Move made successfully', { 
         gameId, 
         playerId: player.id, 
-        move: result.move.san 
+        move: result.move?.san 
       });
     } catch (error) {
       logger.error('Error making move', { 
@@ -404,19 +499,27 @@ class SocketService {
       if (player) {
         logger.info('User disconnected', { 
           socketId: socket.id, 
-          playerId: player.id 
+          playerId: player.id,
+          username: player.username
         });
-
-        // Find and handle games this player was in
-        // In a production system, you might want to give them time to reconnect
-        // For now, we'll immediately end their games
-        this.handlePlayerGamesOnDisconnect(player);
 
         // Remove from tracking
         this.connectedPlayers.delete(socket.id);
         this.playerSockets.delete(player.id);
+        
+        // Handle player games on disconnect
+        this.handlePlayerGamesOnDisconnect(player);
       } else {
-        logger.info('Unknown user disconnected', { socketId: socket.id });
+        // Still remove from playerSockets if we have the userId
+        if (socket.userId) {
+          this.playerSockets.delete(socket.userId);
+          logger.info('Disconnected user cleaned up', { 
+            socketId: socket.id, 
+            userId: socket.userId 
+          });
+        } else {
+          logger.info('Unknown user disconnected', { socketId: socket.id });
+        }
       }
     } catch (error) {
       logger.error('Error handling disconnection', { 
@@ -455,16 +558,44 @@ class SocketService {
    */
   notifyGameStart(gameData) {
     try {
+      logger.info('notifyGameStart called with data', { 
+        gameId: gameData.id,
+        players: gameData.players,
+        playerCount: gameData.players?.length,
+        playerSocketMappings: Array.from(this.playerSockets.entries())
+      });
+
       const { players } = gameData;
       
+      if (!players || !Array.isArray(players)) {
+        logger.error('Game data missing players array', { gameData });
+        return;
+      }
+
       players.forEach(player => {
-        const socketId = this.playerSockets.get(player.id);
+        const socketId = this.playerSockets.get(player.user_id || player.id || player.userId);
+        logger.info('Looking for socket for player', { 
+          playerId: player.user_id || player.id || player.userId,
+          socketId,
+          playerData: player
+        });
+        
         if (socketId) {
           this.io.to(socketId).emit(SOCKET_EVENTS.GAME_STARTED, {
             gameId: gameData.id,
             color: player.color,
-            opponent: players.find(p => p.id !== player.id),
+            opponent: players.find(p => (p.user_id || p.id || p.userId) !== (player.user_id || player.id || player.userId)),
             gameState: gameData
+          });
+          
+          logger.info('Game start notification sent', { 
+            playerId: player.user_id || player.id || player.userId,
+            socketId,
+            gameId: gameData.id
+          });
+        } else {
+          logger.warn('No socket found for player', { 
+            playerId: player.user_id || player.id || player.userId
           });
         }
       });
@@ -487,21 +618,36 @@ class SocketService {
    * @param {string} event - Event name
    * @param {Object} data - Event data
    */
-  broadcastToGame(gameId, event, data) {
+  async broadcastToGame(gameId, event, data) {
     try {
-      const game = gameService.getGame(gameId);
-      if (!game) {
+      console.log('📡 Broadcasting to game:', gameId, 'event:', event);
+      
+      // Get game from database instead of in-memory service
+      const game = await gameService.getGameById(gameId);
+      if (!game || !game.players) {
+        logger.warn('Game not found for broadcast', { gameId });
         return;
       }
 
-      game.playersList.forEach(player => {
-        const socketId = this.playerSockets.get(player.id);
+      console.log('📡 Found game with players:', game.players.map(p => p.user_id));
+
+      game.players.forEach(player => {
+        const socketId = this.playerSockets.get(player.user_id);
+        console.log('📡 Player:', player.user_id, 'socketId:', socketId);
+        
         if (socketId) {
           this.io.to(socketId).emit(event, data);
+          console.log('📡 Sent to player:', player.user_id);
+        } else {
+          console.log('❌ No socket for player:', player.user_id);
         }
       });
 
-      logger.debug('Broadcast to game', { gameId, event, playerCount: game.playersList.length });
+      logger.info('Broadcast completed', { 
+        gameId, 
+        event, 
+        playerCount: game.players.length 
+      });
     } catch (error) {
       logger.error('Error broadcasting to game', { 
         error: error.message, 

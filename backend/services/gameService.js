@@ -143,6 +143,9 @@ class GameService {
       
       logger.info('Player joined game', { gameId, userId, color: newColor });
       
+      // Small delay to ensure database consistency before fetching complete game data
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       return await this.getGameById(gameId);
     } catch (error) {
       await transaction.rollback();

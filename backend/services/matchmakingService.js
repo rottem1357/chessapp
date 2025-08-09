@@ -10,11 +10,19 @@ class MatchmakingService {
       bullet: []
     };
     this.isProcessing = false;
+    this.socketService = null; // Will be set by SocketService
     
     // Start queue processing only in non-test environments
     if (process.env.NODE_ENV !== 'test') {
       this.startQueueProcessor();
     }
+  }
+
+  /**
+   * Set socket service for notifications
+   */
+  setSocketService(socketService) {
+    this.socketService = socketService;
   }
 
   /**
@@ -183,16 +191,28 @@ class MatchmakingService {
       // Add second player
       await gameService.joinGame(game.id, player2.userId);
 
+      // Small delay to ensure database consistency
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Get fresh game data with both players
+      const completeGame = await gameService.getGameById(game.id);
+
       logger.info('Matched game created', { 
         gameId: game.id,
         player1: player1.userId,
         player2: player2.userId,
-        gameType: player1.gameType
+        gameType: player1.gameType,
+        playerCount: completeGame?.players?.length || 0
       });
+
+      // Notify socket service about the game creation
+      if (this.socketService) {
+        this.socketService.notifyGameStart(completeGame);
+      }
 
       return {
         message: 'Match found!',
-        game: game,
+        game: completeGame,
         opponent: {
           username: player2.username,
           displayName: player2.displayName,
@@ -286,9 +306,15 @@ class MatchmakingService {
         const player2Index = queue.findIndex(p => p.userId === match.userId);
         if (player2Index !== -1 && !processed.has(player2Index)) {
           try {
-            await this.createMatchedGame(player1, match);
+            const gameResult = await this.createMatchedGame(player1, match);
             processed.add(i);
             processed.add(player2Index);
+            
+            logger.info('Background match created', { 
+              gameId: gameResult.game?.id,
+              player1: player1.userId,
+              player2: match.userId 
+            });
           } catch (error) {
             logger.error('Failed to create match in processor', { error: error.message });
           }

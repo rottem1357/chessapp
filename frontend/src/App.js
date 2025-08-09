@@ -1,50 +1,56 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home';
-import Game from './pages/Game';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore } from './store/authStore';
+import AuthPage from './pages/auth/AuthPage';
+import HomePage from './pages/HomePage';
+import GamePage from './pages/game/GamePage';
 import ProtectedRoute from './components/ProtectedRoute';
-import LocalGame from './pages/LocalGame';
-import AIGame from './pages/AIGame';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import PasswordResetRequestPage from './pages/PasswordResetRequestPage';
-import PasswordResetConfirmPage from './pages/PasswordResetConfirmPage';
-import UserProfilePage from './pages/UserProfilePage';
 import './App.css';
-import AuthProvider from './components/AuthProvider';
 
 function App() {
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+
   return (
-    <AuthProvider>
-      <Router>
-        <div className="App">
-          <header className="App-header">
-            <h1>Chess App</h1>
-          </header>
-          <main>
-            <Routes>
-              <Route path="/" element={<Home />} />
-            <Route path="/game/:gameId" element={
+    <Router>
+      <div className="app">
+        <Routes>
+          {/* Auth route */}
+          <Route 
+            path="/auth" 
+            element={
+              isAuthenticated ? <Navigate to="/" replace /> : <AuthPage />
+            } 
+          />
+          
+          {/* Protected routes */}
+          <Route 
+            path="/" 
+            element={
               <ProtectedRoute>
-                <Game />
+                <HomePage />
               </ProtectedRoute>
-            } />
-              <Route path="/local" element={<LocalGame />} />
-              <Route path="/ai-game/:gameId" element={<AIGame />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/password-reset/request" element={<PasswordResetRequestPage />} />
-              <Route path="/password-reset/confirm" element={<PasswordResetConfirmPage />} />
-              <Route path="/profile" element={
-                <ProtectedRoute>
-                  <UserProfilePage />
-                </ProtectedRoute>
-              } />
-            </Routes>
-          </main>
-        </div>
-      </Router>
-    </AuthProvider>
+            } 
+          />
+          
+          <Route 
+            path="/game/:gameId" 
+            element={
+              <ProtectedRoute>
+                <GamePage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Redirect to auth if not authenticated, home if authenticated */}
+          <Route 
+            path="*" 
+            element={
+              <Navigate to={isAuthenticated ? "/" : "/auth"} replace />
+            } 
+          />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 

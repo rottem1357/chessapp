@@ -1,219 +1,116 @@
-/**
- * API Service Layer
- * 
- * This module provides a centralized HTTP client for all API communications.
- * It handles request/response formatting, error handling, and authentication.
- */
-
 import axios from 'axios';
-import { API_CONFIG, ERROR_MESSAGES } from '../utils/constants';
 
-/**
- * Create axios instance with default configuration
- */
+// API Configuration - matching your backend structure
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+console.log('🔧 API Base URL:', API_BASE_URL);
+
+// Create axios instance
 const apiClient = axios.create({
-  baseURL: API_CONFIG.BASE_URL,
-  timeout: API_CONFIG.TIMEOUT,
+  baseURL: API_BASE_URL,
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-/**
- * Request interceptor to add authentication and common headers
- */
+// Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    // Add authentication token if available
-    const token = localStorage.getItem('auth_token');
+    console.log('🚀 API Request:', config.method?.toUpperCase(), config.url);
+    const token = localStorage.getItem('chess-auth');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      const authData = JSON.parse(token);
+      if (authData.state?.token) {
+        config.headers.Authorization = `Bearer ${authData.state.token}`;
+      }
     }
-    
-    // Add request timestamp for debugging
-    config.metadata = { startTime: new Date() };
-    
     return config;
   },
   (error) => {
+    console.error('❌ API Request Error:', error);
     return Promise.reject(error);
   }
 );
 
-/**
- * Response interceptor to handle common errors and format responses
- */
+// Response interceptor for error handling and debugging
 apiClient.interceptors.response.use(
   (response) => {
-    // Calculate request duration for debugging
-    const endTime = new Date();
-    const duration = endTime - response.config.metadata.startTime;
-    console.log(`API Request to ${response.config.url} took ${duration}ms`);
-    
+    console.log('✅ API Response:', response.status, response.config.url);
     return response;
   },
   (error) => {
-    // Handle common HTTP errors
-    if (error.response) {
-      // Server responded with error status
-      const { status, data } = error.response;
-      
-      switch (status) {
-        case 400:
-          error.message = data.message || 'Bad request';
-          break;
-        case 401:
-          error.message = 'Unauthorized. Please log in again.';
-          // Clear auth token if unauthorized
-          localStorage.removeItem('auth_token');
-          break;
-        case 403:
-          error.message = 'Forbidden. You don\'t have permission to access this resource.';
-          break;
-        case 404:
-          error.message = data.message || 'Resource not found';
-          break;
-        case 500:
-          error.message = ERROR_MESSAGES.SERVER_ERROR;
-          break;
-        default:
-          error.message = data.message || 'An unexpected error occurred';
-      }
-    } else if (error.request) {
-      // Network error
-      error.message = ERROR_MESSAGES.NETWORK_ERROR;
-    } else {
-      // Other error
-      error.message = error.message || 'An unexpected error occurred';
+    console.error('❌ API Response Error:', error.response?.status, error.response?.data);
+    console.error('Full error response:', error.response);
+    if (error.response?.status === 401) {
+      // Clear auth data on unauthorized
+      localStorage.removeItem('chess-auth');
+      window.location.href = '/auth';
     }
-    
     return Promise.reject(error);
   }
 );
 
-/**
- * Generic API request wrapper
- * @param {string} method - HTTP method (GET, POST, PUT, DELETE)
- * @param {string} url - API endpoint URL
- * @param {Object} data - Request payload
- * @param {Object} options - Additional axios options
- * @returns {Promise} API response
- */
-const request = async (method, url, data = null, options = {}) => {
-  try {
-    const config = {
-      method,
-      url,
-      ...options,
-    };
-    
-    if (data) {
-      config.data = data;
-    }
-    
-    const response = await apiClient(config);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+// Auth API - matching your test structure
+export const authAPI = {
+  // POST /api/auth/register
+  register: (userData) => apiClient.post('/auth/register', {
+    username: userData.username,
+    email: userData.email,
+    password: userData.password,
+    display_name: userData.display_name || userData.username,
+    country: userData.country || 'US'
+  }),
+  
+  // POST /api/auth/login - supports username or email
+  login: (credentials) => apiClient.post('/auth/login', {
+    username: credentials.email || credentials.username, // Your backend accepts either
+    password: credentials.password
+  }),
+  
+  // GET /api/auth/me
+  getProfile: () => apiClient.get('/auth/me'),
+  
+  logout: () => apiClient.post('/auth/logout'),
 };
 
-/**
- * API methods
- */
-export const api = {
-  /**
-   * GET request
-   * @param {string} url - API endpoint
-   * @param {Object} options - Additional options
-   * @returns {Promise} API response
-   */
-  get: (url, options = {}) => request('GET', url, null, options),
+// Game API - matching your test endpoints
+export const gameAPI = {
+  // GET /api/games - with filtering and pagination
+  getGames: (params = {}) => apiClient.get('/games', { params }),
   
-  /**
-   * POST request
-   * @param {string} url - API endpoint
-   * @param {Object} data - Request payload
-   * @param {Object} options - Additional options
-   * @returns {Promise} API response
-   */
-  post: (url, data, options = {}) => request('POST', url, data, options),
+  // GET /api/games/:gameId
+  getGame: (gameId) => apiClient.get(`/games/${gameId}`),
   
-  /**
-   * PUT request
-   * @param {string} url - API endpoint
-   * @param {Object} data - Request payload
-   * @param {Object} options - Additional options
-   * @returns {Promise} API response
-   */
-  put: (url, data, options = {}) => request('PUT', url, data, options),
+  // GET /api/games/:gameId/moves
+  getGameMoves: (gameId) => apiClient.get(`/games/${gameId}/moves`),
   
-  /**
-   * DELETE request
-   * @param {string} url - API endpoint
-   * @param {Object} options - Additional options
-   * @returns {Promise} API response
-   */
-  delete: (url, options = {}) => request('DELETE', url, null, options),
+  // POST /api/games/:gameId/join
+  joinGame: (gameId, password = null) => apiClient.post(`/games/${gameId}/join`, { password }),
   
-  /**
-   * PATCH request
-   * @param {string} url - API endpoint
-   * @param {Object} data - Request payload
-   * @param {Object} options - Additional options
-   * @returns {Promise} API response
-   */
-  patch: (url, data, options = {}) => request('PATCH', url, data, options),
+  // POST /api/games/:gameId/moves
+  makeMove: (gameId, moveData) => apiClient.post(`/games/${gameId}/moves`, {
+    move: moveData.move,
+    time_spent_ms: moveData.timeSpent || 0,
+    promotion: moveData.promotion || null
+  }),
+  
+  // POST /api/games/:gameId/resign
+  resignGame: (gameId) => apiClient.post(`/games/${gameId}/resign`),
+  
+  // POST /api/games/:gameId/offer-draw
+  offerDraw: (gameId) => apiClient.post(`/games/${gameId}/offer-draw`),
+  
+  // POST /api/games/:gameId/accept-draw
+  acceptDraw: (gameId) => apiClient.post(`/games/${gameId}/accept-draw`),
 };
 
-/**
- * Utility function to handle API responses
- * @param {Promise} apiCall - API call promise
- * @returns {Object} { data, error, loading }
- */
-export const handleApiResponse = async (apiCall) => {
-  try {
-    const response = await apiCall;
-    return {
-      data: response.data || response,
-      error: null,
-      success: response.success !== undefined ? response.success : true,
-    };
-  } catch (error) {
-    return {
-      data: null,
-      error: error.message || ERROR_MESSAGES.SERVER_ERROR,
-      success: false,
-    };
-  }
+// Friends API - from your tests structure
+export const friendsAPI = {
+  getFriends: () => apiClient.get('/friends'),
+  sendFriendRequest: (userId) => apiClient.post('/friends/request', { userId }),
+  acceptFriendRequest: (requestId) => apiClient.post(`/friends/accept/${requestId}`),
+  declineFriendRequest: (requestId) => apiClient.post(`/friends/decline/${requestId}`),
 };
 
-/**
- * Utility function to create query string from object
- * @param {Object} params - Query parameters
- * @returns {string} Query string
- */
-export const createQueryString = (params) => {
-  const queryParams = new URLSearchParams();
-  
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== null && value !== undefined && value !== '') {
-      queryParams.append(key, value);
-    }
-  });
-  
-  return queryParams.toString();
-};
-
-/**
- * Utility function to build URL with query parameters
- * @param {string} baseUrl - Base URL
- * @param {Object} params - Query parameters
- * @returns {string} Complete URL with query string
- */
-export const buildUrl = (baseUrl, params = {}) => {
-  const queryString = createQueryString(params);
-  return queryString ? `${baseUrl}?${queryString}` : baseUrl;
-};
-
-export default api;
+export default apiClient;

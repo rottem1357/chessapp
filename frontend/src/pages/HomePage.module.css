@@ -1,0 +1,142 @@
+.container {
+  min-height: 100vh;
+  background: #f8fafc;
+}
+
+.header {
+  background: white;
+  padding: 1rem 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header h1 {
+  color: #1e293b;
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: #64748b;
+}
+
+.main {
+  padding: 2rem;
+}
+
+.content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: 1fr;
+}
+
+.playSection {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.playSection p {
+  color: #64748b;
+  margin-bottom: 1.5rem;
+}
+
+.error {
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.queueSection {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.queueStatus {
+  margin-bottom: 1.5rem;
+}
+
+.queueStatus h3 {
+  color: #1e293b;
+  margin: 0.5rem 0;
+}
+
+.queueStatus p {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.spinner {
+  font-size: 2rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.statValue {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.statLabel {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.gameModes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gameMode {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+
+.comingSoon {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: #e2e8f0;
+  color: #64748b;
+  border-radius: 4px;
+}
+
+@media (min-width: 768px) {
+  .content {
+    grid-template-columns: 2fr 1fr;
+    align-items: start;
+  }
+}
