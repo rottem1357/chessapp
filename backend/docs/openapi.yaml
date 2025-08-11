@@ -1,0 +1,600 @@
+openapi: 3.0.3
+info:
+  title: ChessApp Backend API
+  version: 1.0.0
+  description: |
+    Standardized API for ChessApp backend.
+    - All responses use the envelope from `utils/helpers.js#formatResponse`.
+    - Pagination metadata is included under `meta.pagination`.
+servers:
+  - url: /api
+    description: Main API mount (see `backend/server.js`)
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: {}
+        message: { type: string }
+        errorCode: { type: string, nullable: true }
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+        timestamp: { type: string, format: date-time }
+      required: [success, message, timestamp]
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer, minimum: 1 }
+        limit: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0 }
+        pages: { type: integer, minimum: 0 }
+        hasNext: { type: boolean }
+        hasPrev: { type: boolean }
+      required: [page, limit, total, pages, hasNext, hasPrev]
+    UserSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        display_name: { type: string }
+        avatar_url: { type: string, nullable: true }
+        country: { type: string, nullable: true }
+        rating_rapid: { type: integer }
+        rating_blitz: { type: integer }
+        rating_bullet: { type: integer }
+        rating_puzzle: { type: integer }
+        games_played: { type: integer }
+        is_verified: { type: boolean }
+        created_at: { type: string, format: date-time }
+    GameSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        game_type: { type: string, enum: [rapid, blitz, bullet, correspondence] }
+        result: { type: string }
+        finished_at: { type: string, format: date-time, nullable: true }
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [System]
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  # Auth
+  /auth/register:
+    post:
+      summary: Register
+      tags: [Auth]
+      security: []
+      responses:
+        '200': { description: Registered, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /auth/login:
+    post:
+      summary: Login
+      tags: [Auth]
+      security: []
+      responses:
+        '200': { description: Logged in, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /auth/logout:
+    post:
+      summary: Logout
+      tags: [Auth]
+      responses:
+        '200': { description: Logged out, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /auth/me:
+    get:
+      summary: Get current user profile
+      tags: [Auth]
+      responses:
+        '200': { description: Profile, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+
+  # Users
+  /users/search:
+    get:
+      summary: Search users
+      tags: [Users]
+      security: []
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+          required: true
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+      responses:
+        '200':
+          description: Results
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          users:
+                            type: array
+                            items: { $ref: '#/components/schemas/UserSummary' }
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+  /users/profile:
+    put:
+      summary: Update profile
+      tags: [Users]
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /users/preferences:
+    get:
+      summary: Get preferences
+      tags: [Users]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+    put:
+      summary: Update preferences
+      tags: [Users]
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /users/puzzle-stats:
+    get:
+      summary: Get my puzzle stats
+      tags: [Users]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /users/{userId}:
+    get:
+      summary: Get user profile
+      tags: [Users]
+      security: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /users/{userId}/stats:
+    get:
+      summary: Get user stats
+      tags: [Users]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /users/{userId}/rating-history:
+    get:
+      summary: Get user rating history
+      tags: [Users]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: query
+          name: ratingType
+          schema: { type: string, enum: [rapid, blitz, bullet] }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+
+  # Games
+  /games:
+    get:
+      summary: List games (paginated)
+      tags: [Games]
+      security: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /games/{gameId}:
+    get:
+      summary: Get game details
+      tags: [Games]
+      security: []
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /games/{gameId}/moves:
+    get:
+      summary: Move history
+      tags: [Games]
+      security: []
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /games/{gameId}/opening:
+    get:
+      summary: Opening detected for game
+      tags: [Games]
+      security: []
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /games:
+    post:
+      summary: Create game
+      tags: [Games]
+      responses:
+        '200': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /games/{gameId}/join:
+    post:
+      summary: Join game
+      tags: [Games]
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Joined, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /games/{gameId}/moves:
+    post:
+      summary: Make move
+      tags: [Games]
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /games/{gameId}/resign:
+    post:
+      summary: Resign
+      tags: [Games]
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /games/{gameId}/draw:
+    post:
+      summary: Offer draw
+      tags: [Games]
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+    put:
+      summary: Respond to draw
+      tags: [Games]
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /games/{gameId}/analysis:
+    get:
+      summary: Get analysis
+      tags: [Games]
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /games/{gameId}/analyze:
+    post:
+      summary: Request analysis
+      tags: [Games]
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+
+  # Matchmaking
+  /matchmaking/queue:
+    post:
+      summary: Join matchmaking queue
+      tags: [Matchmaking]
+      responses:
+        '200': { description: Joined, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+    delete:
+      summary: Leave matchmaking queue
+      tags: [Matchmaking]
+      responses:
+        '200': { description: Left, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /matchmaking/status:
+    get:
+      summary: Get my queue status
+      tags: [Matchmaking]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /matchmaking/stats:
+    get:
+      summary: Queue stats
+      tags: [Matchmaking]
+      security: []
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /matchmaking/stats/detailed:
+    get:
+      summary: Queue stats (detailed)
+      tags: [Matchmaking]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /matchmaking/preferences:
+    get:
+      summary: Get my matchmaking preferences
+      tags: [Matchmaking]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+    put:
+      summary: Update matchmaking preferences
+      tags: [Matchmaking]
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /matchmaking/history:
+    get:
+      summary: My matchmaking history (paginated)
+      tags: [Matchmaking]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /matchmaking/optimal-times:
+    get:
+      summary: Optimal queue times
+      tags: [Matchmaking]
+      security: []
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /matchmaking/cancel-match:
+    post:
+      summary: Cancel current match
+      tags: [Matchmaking]
+      responses:
+        '200': { description: Cancelled, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /matchmaking/report-issue:
+    post:
+      summary: Report matchmaking issue
+      tags: [Matchmaking]
+      responses:
+        '200': { description: Reported, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /matchmaking/admin/queues:
+    get:
+      summary: Admin queues view
+      tags: [Matchmaking]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+
+  # Puzzles
+  /puzzles/random:
+    get:
+      summary: Get random puzzle
+      tags: [Puzzles]
+      security: []
+      parameters:
+        - in: query
+          name: rating
+          schema: { type: integer, minimum: 400, maximum: 3000 }
+        - in: query
+          name: themes
+          schema: { type: string, description: 'Comma-separated theme names' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /puzzles/categories:
+    get:
+      summary: Get puzzle categories
+      tags: [Puzzles]
+      security: []
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /puzzles/stats:
+    get:
+      summary: Get my puzzle stats
+      tags: [Puzzles]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /puzzles/history:
+    get:
+      summary: My puzzle history (paginated)
+      tags: [Puzzles]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /puzzles/{puzzleId}:
+    get:
+      summary: Get puzzle by id
+      tags: [Puzzles]
+      security: []
+      parameters:
+        - in: path
+          name: puzzleId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /puzzles/{puzzleId}/attempt:
+    post:
+      summary: Submit puzzle attempt
+      tags: [Puzzles]
+      parameters:
+        - in: path
+          name: puzzleId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+
+  # Friends
+  /friends:
+    get:
+      summary: Get my friends & pending
+      tags: [Friends]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /friends/requests:
+    post:
+      summary: Send friend request
+      tags: [Friends]
+      responses:
+        '200': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /friends/requests/{requestId}:
+    put:
+      summary: Respond to friend request
+      tags: [Friends]
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /friends/{friendId}:
+    delete:
+      summary: Remove friend
+      tags: [Friends]
+      parameters:
+        - in: path
+          name: friendId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /friends/{friendId}/challenge:
+    post:
+      summary: Challenge friend to a game
+      tags: [Friends]
+      parameters:
+        - in: path
+          name: friendId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+
+  # Ratings
+  /ratings/leaderboard:
+    get:
+      summary: Leaderboard (paginated)
+      tags: [Ratings]
+      security: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - in: query
+          name: type
+          schema: { type: string, enum: [rapid, blitz, bullet, puzzle], default: rapid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  # Openings
+  /openings:
+    get:
+      summary: Search openings
+      tags: [Openings]
+      security: []
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: eco
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+  /openings/{openingId}:
+    get:
+      summary: Get opening details
+      tags: [Openings]
+      security: []
+      parameters:
+        - in: path
+          name: openingId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+
+  # Statistics
+  /statistics/global:
+    get:
+      summary: Global statistics
+      tags: [Statistics]
+      security: []
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }

@@ -1,4 +1,8 @@
-# Backend API Endpoints Reference
+# DEPRECATED: Backend API Endpoints Reference
+
+> This file is deprecated. Please use the canonical documentation:
+> - OpenAPI spec: `docs/openapi.yaml`
+> - Contract guide: `docs/API_CONTRACT.md`
 
 ## Summary
 - **Total Endpoints**: 49 unique endpoints

@@ -76,22 +76,10 @@ Environment variables are configured in the `.env` file:
 
 ## 📚 API Documentation
 
-### Health Check
-- `GET /api/health` - Server health status
+- **OpenAPI spec**: `docs/openapi.yaml`
+- **API Contract guide**: `docs/API_CONTRACT.md`
 
-### Games
-- `GET /api/games` - Get list of active games
-- `POST /api/games` - Create new game
-- `GET /api/games/:id` - Get game details
-- `DELETE /api/games/:id` - End game
-
-### AI Games
-- `GET /api/ai/difficulties` - Get available AI difficulty levels
-- `POST /api/ai/game/new` - Create new AI game
-- `GET /api/ai/game/:gameId` - Get AI game state
-- `POST /api/ai/game/:gameId/move` - Make move in AI game
-- `POST /api/ai/game/:gameId/evaluate` - Evaluate position
-- `DELETE /api/ai/game/:gameId` - End AI game
+Base path: `/api` (see `backend/server.js` and `routes/index.js`). Responses use the standardized envelope via `utils/helpers.js#formatResponse`, with pagination under `meta.pagination`.
 
 ### WebSocket Events
 

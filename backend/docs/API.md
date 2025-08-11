@@ -1,6 +1,10 @@
-# Chess App Backend API Documentation
+# DEPRECATED: Chess App Backend API Documentation
 
-## Overview
+> This file is deprecated. Please use the canonical documentation:
+> - OpenAPI spec: `docs/openapi.yaml`
+> - Contract guide: `docs/API_CONTRACT.md`
+
+## Overview (outdated)
 
 The Chess App Backend provides RESTful APIs and WebSocket endpoints for chess gameplay, including multiplayer games and AI opponents.
 

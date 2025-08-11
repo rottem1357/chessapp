@@ -88,7 +88,13 @@ async function searchUsers(req, res) {
     const result = await userService.searchUsers(query, parseInt(page), parseInt(limit));
 
     res.status(HTTP_STATUS.OK).json(
-      formatResponse(true, result, 'Search completed successfully')
+      formatResponse(
+        true,
+        result,
+        'Search completed successfully',
+        null,
+        { pagination: result.pagination }
+      )
     );
   } catch (error) {
     logger.error('Failed to search users', { 
