@@ -79,7 +79,13 @@ async function getUsers(req, res) {
     };
 
     res.status(HTTP_STATUS.OK).json(
-      formatResponse(true, result, 'Users retrieved successfully')
+      formatResponse(
+        true,
+        result,
+        'Users retrieved successfully',
+        null,
+        { pagination: result.pagination }
+      )
     );
   } catch (error) {
     logger.error('Failed to get users for admin', { 
@@ -159,7 +165,13 @@ async function getGames(req, res) {
     };
 
     res.status(HTTP_STATUS.OK).json(
-      formatResponse(true, result, 'Games retrieved successfully')
+      formatResponse(
+        true,
+        result,
+        'Games retrieved successfully',
+        null,
+        { pagination: result.pagination }
+      )
     );
   } catch (error) {
     logger.error('Failed to get games for admin', { 

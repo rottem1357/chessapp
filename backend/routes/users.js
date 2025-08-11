@@ -20,6 +20,6 @@ router.get('/puzzle-stats', verifyToken, asyncHandler(userController.getPuzzleSt
 // Dynamic routes
 router.get('/:userId', optionalAuth, validateUserIdParam, asyncHandler(userController.getUserProfile));
 router.get('/:userId/stats', validateUserIdParam, asyncHandler(userController.getUserStats));
-router.get('/:userId/rating-history', validateRatingHistoryQuery, asyncHandler(userController.getRatingHistory));
+router.get('/:userId/rating-history', validateUserIdParam, validateRatingHistoryQuery, asyncHandler(userController.getRatingHistory));
 
 module.exports = router;

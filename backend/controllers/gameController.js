@@ -35,7 +35,13 @@ async function getGames(req, res) {
     const result = await gameService.getGames(filters, parseInt(page), parseInt(limit));
 
     res.status(HTTP_STATUS.OK).json(
-      formatResponse(true, result, 'Games retrieved successfully')
+      formatResponse(
+        true,
+        result,
+        'Games retrieved successfully',
+        null,
+        { pagination: result.pagination }
+      )
     );
   } catch (error) {
     logger.error('Failed to get games list', { 

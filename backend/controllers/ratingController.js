@@ -37,7 +37,13 @@ async function getLeaderboard(req, res) {
     const result = await ratingService.getLeaderboard(type, pageNum, limitNum);
 
     res.status(HTTP_STATUS.OK).json(
-      formatResponse(true, result, 'Leaderboard retrieved successfully')
+      formatResponse(
+        true,
+        result,
+        'Leaderboard retrieved successfully',
+        null,
+        { pagination: result.pagination }
+      )
     );
   } catch (error) {
     logger.error('Failed to get leaderboard', { 

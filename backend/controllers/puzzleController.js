@@ -238,7 +238,13 @@ async function getPuzzlesByDifficulty(req, res) {
     );
 
     res.status(HTTP_STATUS.OK).json(
-      formatResponse(true, result, 'Puzzles retrieved successfully')
+      formatResponse(
+        true,
+        result,
+        'Puzzles retrieved successfully',
+        null,
+        { pagination: result.pagination }
+      )
     );
   } catch (error) {
     logger.error('Failed to get puzzles by difficulty', { 
@@ -471,8 +477,15 @@ async function getUserHistory(req, res) {
     );
     logger.info('User history result', { count: result.items?.length, pagination: result.pagination });
 
+    // Normalize pagination into meta while keeping data shape for backward compatibility
     res.status(HTTP_STATUS.OK).json(
-      formatResponse(true, result, 'User history retrieved successfully')
+      formatResponse(
+        true,
+        result,
+        'User history retrieved successfully',
+        null,
+        { pagination: result.pagination }
+      )
     );
   } catch (error) {
     logger.error('Failed to get user history', { 

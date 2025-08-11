@@ -236,38 +236,46 @@ async function updatePreferences(req, res) {
       formatResponse(false, null, error.message, 'UPDATE_PREFERENCES_FAILED')
     );
   }
+
 }
 
 /**
  * Get user's queue history
  */
 async function getQueueHistory(req, res) {
-  try {
-    const userId = req.user.id;
-    const { page = 1, limit = 20 } = req.query;
+      try {
+        const userId = req.user.id;
+        const { page = 1, limit = 20 } = req.query;
 
-    logger.info('Queue history request', { 
-      userId,
-      page,
-      limit
-    });
+        logger.info('Queue history request', { 
+          userId,
+          page,
+          limit
+        });
 
-    const result = await matchmakingService.getQueueHistory(userId, parseInt(page), parseInt(limit));
+        const result = await matchmakingService.getQueueHistory(userId, parseInt(page), parseInt(limit));
 
-    res.status(HTTP_STATUS.OK).json(
-      formatResponse(true, result, 'Queue history retrieved successfully')
-    );
-  } catch (error) {
-    logger.error('Failed to get queue history', { 
-      error: error.message, 
-      userId: req.user?.id 
-    });
+        // Normalize pagination into meta while preserving data shape
+        res.status(HTTP_STATUS.OK).json(
+          formatResponse(
+            true,
+            result,
+            'Queue history retrieved successfully',
+            null,
+            { pagination: result.pagination }
+          )
+        );
+      } catch (error) {
+        logger.error('Failed to get queue history', { 
+          error: error.message, 
+          userId: req.user?.id 
+        });
 
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatResponse(false, null, error.message, 'QUEUE_HISTORY_FAILED')
-    );
-  }
-}
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+          formatResponse(false, null, error.message, 'QUEUE_HISTORY_FAILED')
+        );
+      }
+    }
 
 /**
  * Get optimal queue times

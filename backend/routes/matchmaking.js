@@ -12,6 +12,7 @@ const {
 } = require('../middleware/validation');
 const matchmakingController = require('../controllers/matchmakingController');
 const verifyToken = require('../middleware/verifyToken');
+const verifyAdmin = require('../middleware/verifyAdmin');
 
 const router = express.Router();
 
@@ -37,6 +38,6 @@ router.post('/cancel-match', verifyToken, validateCancelMatch, asyncHandler(matc
 router.post('/report-issue', verifyToken, validateReportIssue, asyncHandler(matchmakingController.reportIssue));
 
 // Admin endpoints (if needed)
-router.get('/admin/queues', verifyToken, asyncHandler(matchmakingController.getAdminQueueData));
+router.get('/admin/queues', verifyToken, verifyAdmin, asyncHandler(matchmakingController.getAdminQueueData));
 
 module.exports = router;

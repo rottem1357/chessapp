@@ -75,7 +75,13 @@ async function searchOpenings(req, res) {
     };
 
     res.status(HTTP_STATUS.OK).json(
-      formatResponse(true, result, 'Openings retrieved successfully')
+      formatResponse(
+        true,
+        result,
+        'Openings retrieved successfully',
+        null,
+        { pagination: result.pagination }
+      )
     );
   } catch (error) {
     logger.error('Failed to search openings', { 
@@ -274,7 +280,13 @@ async function getOpeningsByECO(req, res) {
     };
 
     res.status(HTTP_STATUS.OK).json(
-      formatResponse(true, result, `ECO ${eco_group.toUpperCase()} openings retrieved successfully`)
+      formatResponse(
+        true,
+        result,
+        `ECO ${eco_group.toUpperCase()} openings retrieved successfully`,
+        null,
+        { pagination: result.pagination }
+      )
     );
   } catch (error) {
     logger.error('Failed to get openings by ECO', { 
