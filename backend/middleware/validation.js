@@ -620,25 +620,25 @@ const validateJoinQueue = [
   body('rating_range')
     .optional()
     .isObject()
-    .withMessage('Rating range must be an object'),
+    .withMessage('Rating range must be an object')
+    .custom((value) => {
+      if (value && value.min && value.max && value.min > value.max) {
+        throw new Error('Rating range minimum cannot be greater than maximum');
+      }
+      return true;
+    }),
   
   body('rating_range.min')
     .optional()
-    .isInt({ min: 400, max: 3000 })
-    .withMessage('Minimum rating must be between 400-3000')
+    .isInt({ min: 0, max: 3000 })
+    .withMessage('Rating range minimum must be between 0-3000')
     .toInt(),
   
   body('rating_range.max')
     .optional()
-    .isInt({ min: 400, max: 3000 })
-    .withMessage('Maximum rating must be between 400-3000')
-    .toInt()
-    .custom((max, { req }) => {
-      if (req.body.rating_range && req.body.rating_range.min && max <= req.body.rating_range.min) {
-        throw new Error('Maximum rating must be greater than minimum rating');
-      }
-      return true;
-    }),
+    .isInt({ min: 0, max: 3000 })
+    .withMessage('Rating range maximum must be between 0-3000')
+    .toInt(),
   
   handleValidationErrors
 ];

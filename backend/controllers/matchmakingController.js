@@ -22,7 +22,7 @@ async function joinQueue(req, res) {
 
     const queueData = {
       game_type,
-      time_control: time_control || '10+0',
+      time_control: time_control || '10+0', // Provide default here
       rating_range: rating_range || undefined
     };
 
@@ -57,11 +57,21 @@ async function joinQueue(req, res) {
       queueData: req.body
     });
 
-    const statusCode = error.message.includes('not found') ? 
-      HTTP_STATUS.NOT_FOUND : HTTP_STATUS.BAD_REQUEST;
+    // Better error handling
+    let statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    let errorCode = 'QUEUE_JOIN_FAILED';
+    
+    if (error.message.includes('not found')) {
+      statusCode = HTTP_STATUS.NOT_FOUND;
+    } else if (error.message.includes('Invalid rating range') || 
+               error.message.includes('validation') ||
+               error.message.includes('already in queue')) {
+      statusCode = HTTP_STATUS.BAD_REQUEST;
+      errorCode = 'VALIDATION_001';
+    }
 
     res.status(statusCode).json(
-      formatResponse(false, null, error.message, 'QUEUE_JOIN_FAILED')
+      formatResponse(false, null, error.message, errorCode)
     );
   }
 }
