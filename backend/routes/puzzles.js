@@ -11,9 +11,12 @@ const router = express.Router();
 // Public routes
 router.get('/random', validatePuzzleQuery, optionalAuth, asyncHandler(puzzleController.getRandomPuzzle));
 router.get('/categories', asyncHandler(puzzleController.getCategories));
-router.get('/:puzzleId', optionalAuth, asyncHandler(puzzleController.getPuzzleById));
+// Protected user routes (must be before :puzzleId)
+router.get('/stats', verifyToken, asyncHandler(puzzleController.getUserStats));
+router.get('/history', verifyToken, asyncHandler(puzzleController.getUserHistory));
 
-// Protected routes
+// Param routes
+router.get('/:puzzleId', optionalAuth, asyncHandler(puzzleController.getPuzzleById));
 router.post('/:puzzleId/attempt', verifyToken, validatePuzzleAttempt, asyncHandler(puzzleController.submitAttempt));
 
 module.exports = router;

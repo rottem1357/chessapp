@@ -11,8 +11,29 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     moves: {
-      type: DataTypes.TEXT, // Solution moves in UCI format
-      allowNull: false
+      type: DataTypes.TEXT, // Solution moves, stored as JSON string
+      allowNull: false,
+      get() {
+        const value = this.getDataValue('moves');
+        if (!value) return [];
+        try {
+          const parsed = JSON.parse(value);
+          return parsed;
+        } catch (_) {
+          // Fallback: support CSV stored moves
+          return value.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      },
+      set(value) {
+        if (Array.isArray(value)) {
+          this.setDataValue('moves', JSON.stringify(value));
+        } else if (typeof value === 'string') {
+          this.setDataValue('moves', value);
+        } else {
+          // Coerce other types to string
+          this.setDataValue('moves', JSON.stringify(value));
+        }
+      }
     },
     rating: {
       type: DataTypes.INTEGER,

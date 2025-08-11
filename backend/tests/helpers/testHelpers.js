@@ -128,7 +128,8 @@ async function createGameWithPlayers(users = null) {
  */
 async function createTestPuzzle(puzzleData = {}) {
   const defaultData = {
-    fen: 'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 0 4',
+    // Start from the initial position by default so common opening sequences are legal
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
     moves: 'e1g1,e8g8', // Simple castling puzzle
     rating: 1200,
     themes: ['castling', 'safety']

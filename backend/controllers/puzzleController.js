@@ -86,35 +86,57 @@ async function submitAttempt(req, res) {
   try {
     const { puzzleId } = req.params;
     const userId = req.user.id;
-    const { moves, time_spent_ms } = req.body;
+    const { moves, time_spent_ms, time_spent } = req.body;
 
     logger.info('Puzzle attempt submission', { 
       puzzleId, 
       userId, 
       moves,
-      timeSpent: time_spent_ms
+      timeSpentMs: time_spent_ms,
+      timeSpentSec: time_spent
     });
 
+    // Normalize moves: accept [["e4","e5"],[...]] or ["e4","e5",...]
+    let normalizedMoves = Array.isArray(moves) ? moves : [];
+    if (Array.isArray(normalizedMoves[0])) {
+      normalizedMoves = normalizedMoves.flat();
+    }
+
+    // Normalize time: accept time_spent (seconds) or time_spent_ms (milliseconds)
+    const normalizedTimeMs = (
+      typeof time_spent_ms === 'number' && !isNaN(time_spent_ms)
+    ) ? time_spent_ms : (
+      typeof time_spent === 'number' && !isNaN(time_spent) ? Math.round(time_spent * 1000) : 0
+    );
+
     const attemptData = {
-      moves,
-      time_spent_ms
+      moves: normalizedMoves,
+      time_spent_ms: normalizedTimeMs
     };
 
     const result = await puzzleService.submitAttempt(puzzleId, userId, attemptData);
 
     const message = result.is_solved ? 
       'Puzzle solved correctly!' : 
-      'Puzzle attempt recorded - try again!';
+      'Incorrect solution. Keep practicing!';
 
-    logger.info('Puzzle attempt processed', { 
+    logger.info('Puzzle attempt result', { 
       puzzleId, 
       userId, 
-      isSolved: result.is_solved,
+      isSolved: result.is_solved, 
       ratingChange: result.rating_change
     });
 
+    // Shape data to align with tests expectations (do not expose full solution)
+    const responseData = {
+      correct: !!result.is_solved,
+      rating_change: result.rating_change,
+      new_rating: result.new_rating,
+      time_spent: Math.round((result.time_spent_ms ?? normalizedTimeMs) / 1000)
+    };
+
     res.status(HTTP_STATUS.OK).json(
-      formatResponse(true, result, message)
+      formatResponse(true, responseData, message)
     );
   } catch (error) {
     logger.error('Failed to submit puzzle attempt', { 
@@ -405,6 +427,65 @@ async function reportPuzzleIssue(req, res) {
   }
 }
 
+/**
+ * Get user stats (placeholder)
+ */
+async function getUserStats(req, res) {
+  try {
+    const userId = req.user.id;
+
+    logger.info('User stats request', { userId });
+
+    const result = await puzzleService.getUserStats(userId);
+    logger.info('User stats result', result);
+
+    res.status(HTTP_STATUS.OK).json(
+      formatResponse(true, result, 'User stats retrieved successfully')
+    );
+  } catch (error) {
+    logger.error('Failed to get user stats', { 
+      error: error.message, 
+      userId: req.user?.id 
+    });
+
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      formatResponse(false, null, error.message, 'USER_STATS_FAILED')
+    );
+  }
+}
+
+/**
+ * Get user history (placeholder)
+ */
+async function getUserHistory(req, res) {
+  try {
+    const userId = req.user.id;
+    const { page = 1, limit = 10 } = req.query;
+
+    logger.info('User history request', { userId, page, limit });
+
+    const result = await puzzleService.getUserHistory(
+      userId,
+      parseInt(page),
+      parseInt(limit)
+    );
+    logger.info('User history result', { count: result.items?.length, pagination: result.pagination });
+
+    res.status(HTTP_STATUS.OK).json(
+      formatResponse(true, result, 'User history retrieved successfully')
+    );
+  } catch (error) {
+    logger.error('Failed to get user history', { 
+      error: error.message, 
+      userId: req.user?.id 
+    });
+
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      formatResponse(false, null, error.message, 'USER_HISTORY_FAILED')
+    );
+  }
+}
+
 module.exports = {
   getRandomPuzzle,
   getPuzzleById,
@@ -416,5 +497,7 @@ module.exports = {
   getPuzzleStreak,
   getPuzzleRecommendations,
   createPuzzleSet,
-  reportPuzzleIssue
+  reportPuzzleIssue,
+  getUserStats,
+  getUserHistory
 };

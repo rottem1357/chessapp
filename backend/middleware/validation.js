@@ -686,19 +686,54 @@ const validatePuzzleAttempt = [
     .isUUID()
     .withMessage('Puzzle ID must be a valid UUID'),
   
+  // Accept either ["e4","e5",...] or [["e4","e5"],["Nf3","Nc6"],...]
   body('moves')
-    .isArray({ min: 1, max: 20 })
-    .withMessage('Moves must be an array with 1-20 elements'),
+    .custom((moves) => {
+      if (!Array.isArray(moves) || moves.length < 1 || moves.length > 40) {
+        throw new Error('Moves must be a non-empty array');
+      }
+      // If nested arrays, ensure each inner item is an array of SAN strings
+      const isNested = Array.isArray(moves[0]);
+      if (isNested) {
+        for (const pair of moves) {
+          if (!Array.isArray(pair) || pair.length < 1 || pair.length > 2) {
+            throw new Error('Each move pair must be an array of 1-2 SAN strings');
+          }
+          for (const san of pair) {
+            if (typeof san !== 'string' || san.trim().length < 2 || san.trim().length > 10) {
+              throw new Error('Each move must be a 2-10 char SAN string');
+            }
+          }
+        }
+      } else {
+        for (const san of moves) {
+          if (typeof san !== 'string' || san.trim().length < 2 || san.trim().length > 10) {
+            throw new Error('Each move must be a 2-10 char SAN string');
+          }
+        }
+      }
+      return true;
+    }),
   
-  body('moves.*')
-    .trim()
-    .isLength({ min: 2, max: 10 })
-    .withMessage('Each move must be between 2-10 characters'),
-  
+  // Allow either time_spent_ms (ms) or time_spent (seconds); at least one required
   body('time_spent_ms')
-    .isInt({ min: 0, max: 1800000 }) // Max 30 minutes
+    .optional()
+    .isInt({ min: 0, max: 1800000 })
     .withMessage('Time spent must be between 0 and 1800000 milliseconds')
     .toInt(),
+  body('time_spent')
+    .optional()
+    .isInt({ min: 0, max: 1800 })
+    .withMessage('Time spent must be between 0 and 1800 seconds')
+    .toInt(),
+  body()
+    .custom((_, { req }) => {
+      const b = req.body || {};
+      if (b.time_spent_ms == null && b.time_spent == null) {
+        throw new Error('Either time_spent_ms (ms) or time_spent (seconds) is required');
+      }
+      return true;
+    }),
   
   handleValidationErrors
 ];
