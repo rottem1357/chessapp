@@ -173,11 +173,95 @@ const validateUpdateProfile = [
     .trim()
     .isURL({ protocols: ['http', 'https'], require_protocol: true })
     .withMessage('Avatar URL must be a valid HTTPS URL')
-    .isLength({ max: 500 })
-    .withMessage('Avatar URL must not exceed 500 characters'),
+      .isLength({ max: 500 })
+      .withMessage('Avatar URL must not exceed 500 characters'),
   
-  handleValidationErrors
-];
+    handleValidationErrors
+  ];
+
+  /**
+   * Validate update queue preferences
+   */
+  const validateUpdatePreferences = [
+    body('preferredTimeControls')
+      .optional()
+      .isArray()
+      .withMessage('Preferred time controls must be an array'),
+    body('preferredTimeControls.*')
+      .optional()
+      .matches(/^\d+\+\d+$/)
+      .withMessage('Each time control must be in format "minutes+increment"'),
+    body('maxRatingRange')
+      .optional()
+      .isInt({ min: 50, max: 1000 })
+      .withMessage('Max rating range must be between 50-1000')
+      .toInt(),
+    body('autoAcceptMatches')
+      .optional()
+      .isBoolean()
+      .withMessage('Auto accept matches must be boolean')
+      .toBoolean(),
+    body('notificationsEnabled')
+      .optional()
+      .isBoolean()
+      .withMessage('Notifications enabled must be boolean')
+      .toBoolean(),
+    body('preferredGameTypes')
+      .optional()
+      .isArray()
+      .withMessage('Preferred game types must be an array'),
+    body('preferredGameTypes.*')
+      .optional()
+      .isIn(['rapid', 'blitz', 'bullet'])
+      .withMessage('Each game type must be rapid, blitz, or bullet'),
+    handleValidationErrors
+  ];
+
+  /**
+   * Validate optimal queue times query
+   */
+  const validateOptimalTimesQuery = [
+    query('game_type')
+      .optional()
+      .isIn(['rapid', 'blitz', 'bullet'])
+      .withMessage('Game type must be rapid, blitz, or bullet'),
+    query('timezone')
+      .optional()
+      .isLength({ min: 1, max: 50 })
+      .withMessage('Timezone must be 1-50 characters'),
+    handleValidationErrors
+  ];
+
+  /**
+   * Validate cancel match request
+   */
+  const validateCancelMatch = [
+    body('match_id')
+      .notEmpty()
+      .withMessage('Match ID is required')
+      .isLength({ min: 1, max: 100 })
+      .withMessage('Match ID must be 1-100 characters'),
+    handleValidationErrors
+  ];
+
+  /**
+   * Validate issue report
+   */
+  const validateReportIssue = [
+    body('issue_type')
+      .isIn(['long_wait', 'unfair_match', 'connection_issue', 'other'])
+      .withMessage('Issue type must be: long_wait, unfair_match, connection_issue, or other'),
+    body('description')
+      .trim()
+      .isLength({ min: 10, max: 500 })
+      .withMessage('Description must be 10-500 characters'),
+    body('queue_session_id')
+      .optional()
+      .isLength({ min: 1, max: 100 })
+      .withMessage('Queue session ID must be 1-100 characters'),
+    handleValidationErrors
+  ];
+
 
 /**
  * Validate user search
@@ -848,6 +932,10 @@ module.exports = {
   
   // Matchmaking
   validateJoinQueue,
+  validateUpdatePreferences,
+  validateOptimalTimesQuery,
+  validateCancelMatch,
+  validateReportIssue,
   
   // Puzzles
   validatePuzzleQuery,

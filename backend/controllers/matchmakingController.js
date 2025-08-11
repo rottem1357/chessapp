@@ -129,23 +129,15 @@ async function getQueueStats(req, res) {
       requestingUserId: req.user?.id 
     });
 
-    // Get queue sizes for all game types
-    const queueStats = {
-      rapid: matchmakingService.queues.rapid.length,
-      blitz: matchmakingService.queues.blitz.length,
-      bullet: matchmakingService.queues.bullet.length,
-      total: matchmakingService.queues.rapid.length + 
-             matchmakingService.queues.blitz.length + 
-             matchmakingService.queues.bullet.length,
-      timestamp: new Date().toISOString()
-    };
+    const result = await matchmakingService.getGlobalStats();
 
     res.status(HTTP_STATUS.OK).json(
-      formatResponse(true, queueStats, 'Queue statistics retrieved successfully')
+      formatResponse(true, result, 'Queue statistics retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get queue statistics', { 
-      error: error.message 
+      error: error.message, 
+      userId: req.user?.id 
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
@@ -155,46 +147,89 @@ async function getQueueStats(req, res) {
 }
 
 /**
- * Update queue preferences (placeholder)
+ * Get detailed queue statistics (authenticated)
  */
-async function updateQueuePreferences(req, res) {
+async function getDetailedStats(req, res) {
   try {
     const userId = req.user.id;
-    const { 
-      preferred_time_controls, 
-      rating_range_flexibility, 
-      auto_accept_matches 
-    } = req.body;
 
-    logger.info('Queue preferences update request', { 
-      userId,
-      preferences: req.body
-    });
+    logger.info('Detailed queue stats request', { userId });
 
-    // TODO: Implement queue preferences storage
-    // This could include:
-    // - Preferred time controls
-    // - Rating range flexibility
-    // - Auto-accept match settings
-    // - Blocked opponents list
-    
-    res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatResponse(false, null, 'Queue preferences not yet implemented', 'NOT_IMPLEMENTED')
+    const result = await matchmakingService.getDetailedStats(userId);
+
+    res.status(HTTP_STATUS.OK).json(
+      formatResponse(true, result, 'Detailed statistics retrieved successfully')
     );
   } catch (error) {
-    logger.error('Failed to update queue preferences', { 
+    logger.error('Failed to get detailed statistics', { 
       error: error.message, 
       userId: req.user?.id 
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatResponse(false, null, error.message, 'QUEUE_PREFERENCES_FAILED')
+      formatResponse(false, null, error.message, 'DETAILED_STATS_FAILED')
     );
   }
 }
 
 /**
- * Get queue history for user (placeholder)
+ * Get user's matchmaking preferences
+ */
+async function getPreferences(req, res) {
+  try {
+    const userId = req.user.id;
+
+    logger.info('Get preferences request', { userId });
+
+    const result = await matchmakingService.getUserPreferences(userId);
+
+    res.status(HTTP_STATUS.OK).json(
+      formatResponse(true, result, 'Preferences retrieved successfully')
+    );
+  } catch (error) {
+    logger.error('Failed to get preferences', { 
+      error: error.message, 
+      userId: req.user?.id 
+    });
+
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      formatResponse(false, null, error.message, 'GET_PREFERENCES_FAILED')
+    );
+  }
+}
+
+/**
+ * Update user's matchmaking preferences
+ */
+async function updatePreferences(req, res) {
+  try {
+    const userId = req.user.id;
+    const preferences = req.body;
+
+    logger.info('Update preferences request', { 
+      userId,
+      preferences
+    });
+
+    const result = await matchmakingService.updateUserPreferences(userId, preferences);
+
+    res.status(HTTP_STATUS.OK).json(
+      formatResponse(true, result, 'Preferences updated successfully')
+    );
+  } catch (error) {
+    logger.error('Failed to update preferences', { 
+      error: error.message, 
+      userId: req.user?.id 
+    });
+
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      formatResponse(false, null, error.message, 'UPDATE_PREFERENCES_FAILED')
+    );
+  }
+}
+
+/**
+ * Get user's queue history
  */
 async function getQueueHistory(req, res) {
   try {
@@ -207,15 +242,10 @@ async function getQueueHistory(req, res) {
       limit
     });
 
-    // TODO: Implement queue history tracking
-    // This could include:
-    // - Previous queue sessions
-    // - Wait times
-    // - Match success rate
-    // - Cancelled queue sessions
-    
-    res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatResponse(false, null, 'Queue history not yet implemented', 'NOT_IMPLEMENTED')
+    const result = await matchmakingService.getQueueHistory(userId, parseInt(page), parseInt(limit));
+
+    res.status(HTTP_STATUS.OK).json(
+      formatResponse(true, result, 'Queue history retrieved successfully')
     );
   } catch (error) {
     logger.error('Failed to get queue history', { 
@@ -230,7 +260,36 @@ async function getQueueHistory(req, res) {
 }
 
 /**
- * Cancel pending match (placeholder)
+ * Get optimal queue times
+ */
+async function getOptimalQueueTimes(req, res) {
+  try {
+    const { game_type, timezone } = req.query;
+
+    logger.info('Optimal queue times request', { 
+      game_type,
+      timezone,
+      requestingUserId: req.user?.id
+    });
+
+    const result = await matchmakingService.getOptimalQueueTimes(game_type, timezone);
+
+    res.status(HTTP_STATUS.OK).json(
+      formatResponse(true, result, 'Optimal queue times retrieved successfully')
+    );
+  } catch (error) {
+    logger.error('Failed to get optimal queue times', { 
+      error: error.message 
+    });
+
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      formatResponse(false, null, error.message, 'OPTIMAL_TIMES_FAILED')
+    );
+  }
+}
+
+/**
+ * Cancel pending match
  */
 async function cancelMatch(req, res) {
   try {
@@ -242,12 +301,10 @@ async function cancelMatch(req, res) {
       match_id
     });
 
-    // TODO: Implement match cancellation
-    // This would allow users to cancel matches before they start
-    // (useful for when match is found but game hasn't started yet)
-    
-    res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatResponse(false, null, 'Match cancellation not yet implemented', 'NOT_IMPLEMENTED')
+    const result = await matchmakingService.cancelMatch(userId, match_id);
+
+    res.status(HTTP_STATUS.OK).json(
+      formatResponse(true, result, 'Match cancelled successfully')
     );
   } catch (error) {
     logger.error('Failed to cancel match', { 
@@ -262,7 +319,7 @@ async function cancelMatch(req, res) {
 }
 
 /**
- * Report matchmaking issues (placeholder)
+ * Report matchmaking issues
  */
 async function reportIssue(req, res) {
   try {
@@ -275,15 +332,14 @@ async function reportIssue(req, res) {
       queue_session_id
     });
 
-    // TODO: Implement issue reporting
-    // Common issues might include:
-    // - Long wait times
-    // - Inappropriate skill matches
-    // - Connection problems
-    // - Opponent behavior issues
-    
-    res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatResponse(false, null, 'Issue reporting not yet implemented', 'NOT_IMPLEMENTED')
+    const result = await matchmakingService.reportIssue(userId, {
+      issue_type,
+      description,
+      queue_session_id
+    });
+
+    res.status(HTTP_STATUS.OK).json(
+      formatResponse(true, result, 'Issue reported successfully')
     );
   } catch (error) {
     logger.error('Failed to report matchmaking issue', { 
@@ -298,34 +354,28 @@ async function reportIssue(req, res) {
 }
 
 /**
- * Get optimal queue times (placeholder)
+ * Get admin queue data (admin only)
  */
-async function getOptimalQueueTimes(req, res) {
+async function getAdminQueueData(req, res) {
   try {
-    const { game_type, timezone } = req.query;
+    const userId = req.user.id;
 
-    logger.info('Optimal queue times request', { 
-      game_type,
-      timezone,
-      requestingUserId: req.user?.id
-    });
+    logger.info('Admin queue data request', { userId });
 
-    // TODO: Implement optimal queue time analysis
-    // This could provide insights like:
-    // - Peak hours for each game type
-    // - Average wait times by hour
-    // - Best times for specific rating ranges
-    
-    res.status(HTTP_STATUS.NOT_IMPLEMENTED).json(
-      formatResponse(false, null, 'Optimal queue times not yet implemented', 'NOT_IMPLEMENTED')
+    // TODO: Add admin role check
+    const result = await matchmakingService.getAdminQueueData();
+
+    res.status(HTTP_STATUS.OK).json(
+      formatResponse(true, result, 'Admin queue data retrieved successfully')
     );
   } catch (error) {
-    logger.error('Failed to get optimal queue times', { 
-      error: error.message 
+    logger.error('Failed to get admin queue data', { 
+      error: error.message, 
+      userId: req.user?.id 
     });
 
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatResponse(false, null, error.message, 'OPTIMAL_TIMES_FAILED')
+      formatResponse(false, null, error.message, 'ADMIN_QUEUE_DATA_FAILED')
     );
   }
 }
@@ -335,9 +385,12 @@ module.exports = {
   leaveQueue,
   getQueueStatus,
   getQueueStats,
-  updateQueuePreferences,
+  getDetailedStats,
+  getPreferences,
+  updatePreferences,
   getQueueHistory,
+  getOptimalQueueTimes,
   cancelMatch,
   reportIssue,
-  getOptimalQueueTimes
+  getAdminQueueData
 };

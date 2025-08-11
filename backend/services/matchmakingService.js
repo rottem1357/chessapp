@@ -10,7 +10,9 @@ class MatchmakingService {
       bullet: []
     };
     this.isProcessing = false;
-    this.socketService = null; // Will be set by SocketService
+    this.socketService = null;
+    this.queueHistory = new Map(); // userId -> array of queue sessions
+    this.matchHistory = new Map(); // userId -> array of matches
     
     // Start queue processing only in non-test environments
     if (process.env.NODE_ENV !== 'test') {
@@ -35,6 +37,8 @@ class MatchmakingService {
         throw new Error('User not found');
       }
 
+      await new Promise(resolve => setTimeout(resolve, 10));
+
       const gameType = queueData.game_type;
       const userRating = user[`rating_${gameType}`] || user.rating_rapid;
 
@@ -49,10 +53,14 @@ class MatchmakingService {
         gameType,
         timeControl: queueData.time_control || '10+0',
         ratingRange: queueData.rating_range || { min: userRating - 200, max: userRating + 200 },
-        joinedAt: new Date()
+        joinedAt: new Date(),
+        sessionId: this.generateSessionId()
       };
 
       this.queues[gameType].push(queueEntry);
+
+      // Track queue session
+      this.trackQueueSession(userId, queueEntry);
 
       logger.info('User joined matchmaking queue', { 
         userId, 
@@ -70,7 +78,8 @@ class MatchmakingService {
       return {
         message: 'Joined queue successfully',
         position: this.queues[gameType].length,
-        estimatedWaitTime: this.estimateWaitTime(gameType)
+        estimatedWaitTime: this.estimateWaitTime(gameType),
+        sessionId: queueEntry.sessionId
       };
     } catch (error) {
       logger.error('Failed to join queue', { error: error.message, userId });
@@ -84,10 +93,12 @@ class MatchmakingService {
   async leaveQueue(userId) {
     try {
       let removedFrom = null;
+      let sessionId = null;
 
       for (const [gameType, queue] of Object.entries(this.queues)) {
         const index = queue.findIndex(entry => entry.userId === userId);
         if (index !== -1) {
+          sessionId = queue[index].sessionId;
           queue.splice(index, 1);
           removedFrom = gameType;
           break;
@@ -95,6 +106,9 @@ class MatchmakingService {
       }
 
       if (removedFrom) {
+        // Update queue session as manually left
+        this.updateQueueSession(userId, sessionId, 'left', new Date());
+        
         logger.info('User left matchmaking queue', { userId, gameType: removedFrom });
         return { message: 'Left queue successfully' };
       } else {
@@ -120,7 +134,8 @@ class MatchmakingService {
             position: index + 1,
             totalInQueue: queue.length,
             estimatedWaitTime: this.estimateWaitTime(gameType),
-            joinedAt: queue[index].joinedAt
+            joinedAt: queue[index].joinedAt,
+            sessionId: queue[index].sessionId
           };
         }
       }
@@ -138,6 +153,220 @@ class MatchmakingService {
       throw error;
     }
   }
+
+  /**
+   * Get global queue statistics
+   */
+  async getGlobalStats() {
+    try {
+      const stats = {
+        queueSizes: {
+          rapid: this.queues.rapid.length,
+          blitz: this.queues.blitz.length,
+          bullet: this.queues.bullet.length
+        },
+        totalPlayers: this.queues.rapid.length + this.queues.blitz.length + this.queues.bullet.length,
+        averageWaitTimes: {
+          rapid: this.estimateWaitTime('rapid'),
+          blitz: this.estimateWaitTime('blitz'),
+          bullet: this.estimateWaitTime('bullet')
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      return stats;
+    } catch (error) {
+      logger.error('Failed to get global stats', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Get detailed statistics for authenticated user
+   */
+  async getDetailedStats(userId) {
+    try {
+      const globalStats = await this.getGlobalStats();
+      const userHistory = this.queueHistory.get(userId) || [];
+      const userMatches = this.matchHistory.get(userId) || [];
+
+      return {
+        ...globalStats,
+        userStats: {
+          sessionsToday: userHistory.filter(s => this.isToday(s.joinedAt)).length,
+          averageWaitTime: this.calculateAverageWaitTime(userHistory),
+          matchesFound: userMatches.length,
+          successRate: userHistory.length > 0 ? (userMatches.length / userHistory.length) * 100 : 0
+        }
+      };
+    } catch (error) {
+      logger.error('Failed to get detailed stats', { error: error.message, userId });
+      throw error;
+    }
+  }
+
+  /**
+   * Get user preferences (stored in memory for now)
+   */
+  async getUserPreferences(userId) {
+    // TODO: Implement database storage for preferences
+    const defaultPreferences = {
+      preferredTimeControls: ['10+0', '15+10'],
+      maxRatingRange: 200,
+      autoAcceptMatches: false,
+      notificationsEnabled: true,
+      preferredGameTypes: ['rapid', 'blitz']
+    };
+
+    return defaultPreferences;
+  }
+
+  /**
+   * Update user preferences
+   */
+  async updateUserPreferences(userId, preferences) {
+    // TODO: Implement database storage for preferences
+    logger.info('Updating user preferences', { userId, preferences });
+    
+    return {
+      message: 'Preferences updated successfully',
+      preferences
+    };
+  }
+
+  /**
+   * Get queue history for user
+   */
+  async getQueueHistory(userId, page = 1, limit = 20) {
+    try {
+      const userHistory = this.queueHistory.get(userId) || [];
+      const offset = (page - 1) * limit;
+      const paginatedHistory = userHistory.slice(offset, offset + limit);
+
+      return {
+        history: paginatedHistory,
+        pagination: {
+          page,
+          limit,
+          total: userHistory.length,
+          pages: Math.ceil(userHistory.length / limit)
+        }
+      };
+    } catch (error) {
+      logger.error('Failed to get queue history', { error: error.message, userId });
+      throw error;
+    }
+  }
+
+  /**
+   * Get optimal queue times
+   */
+  async getOptimalQueueTimes(gameType, timezone) {
+    try {
+      // TODO: Implement actual analytics based on historical data
+      const mockOptimalTimes = {
+        weekdays: {
+          peak: ['18:00', '19:00', '20:00', '21:00'],
+          good: ['17:00', '22:00'],
+          average: ['12:00', '13:00', '14:00', '15:00', '16:00']
+        },
+        weekends: {
+          peak: ['14:00', '15:00', '16:00', '19:00', '20:00', '21:00'],
+          good: ['11:00', '12:00', '13:00', '17:00', '18:00', '22:00'],
+          average: ['10:00', '23:00']
+        },
+        averageWaitTimes: {
+          peak: 15,
+          good: 45,
+          average: 120
+        }
+      };
+
+      return mockOptimalTimes;
+    } catch (error) {
+      logger.error('Failed to get optimal queue times', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel a pending match
+   */
+  async cancelMatch(userId, matchId) {
+    try {
+      // TODO: Implement match cancellation logic
+      logger.info('Match cancellation requested', { userId, matchId });
+      
+      return {
+        message: 'Match cancellation requested',
+        matchId
+      };
+    } catch (error) {
+      logger.error('Failed to cancel match', { error: error.message, userId });
+      throw error;
+    }
+  }
+
+  /**
+   * Report matchmaking issues
+   */
+  async reportIssue(userId, issueData) {
+    try {
+      const report = {
+        id: this.generateSessionId(),
+        userId,
+        ...issueData,
+        reportedAt: new Date(),
+        status: 'pending'
+      };
+
+      // TODO: Store in database
+      logger.info('Matchmaking issue reported', report);
+      
+      return {
+        message: 'Issue reported successfully',
+        reportId: report.id
+      };
+    } catch (error) {
+      logger.error('Failed to report issue', { error: error.message, userId });
+      throw error;
+    }
+  }
+
+  /**
+   * Get admin queue data
+   */
+  async getAdminQueueData() {
+    try {
+      const queueData = {
+        queues: {
+          rapid: this.queues.rapid.map(entry => ({
+            ...entry,
+            waitTime: Date.now() - entry.joinedAt.getTime()
+          })),
+          blitz: this.queues.blitz.map(entry => ({
+            ...entry,
+            waitTime: Date.now() - entry.joinedAt.getTime()
+          })),
+          bullet: this.queues.bullet.map(entry => ({
+            ...entry,
+            waitTime: Date.now() - entry.joinedAt.getTime()
+          }))
+        },
+        processingStatus: {
+          isProcessing: this.isProcessing,
+          lastProcessedAt: new Date()
+        }
+      };
+
+      return queueData;
+    } catch (error) {
+      logger.error('Failed to get admin queue data', { error: error.message });
+      throw error;
+    }
+  }
+
+  // Helper methods
 
   /**
    * Find a match for a queue entry
@@ -175,6 +404,10 @@ class MatchmakingService {
       this.removeFromQueue(player1.userId, player1.gameType);
       this.removeFromQueue(player2.userId, player2.gameType);
 
+      // Update queue sessions as matched
+      this.updateQueueSession(player1.userId, player1.sessionId, 'matched', new Date());
+      this.updateQueueSession(player2.userId, player2.sessionId, 'matched', new Date());
+
       // Randomly assign colors
       const player1IsWhite = Math.random() > 0.5;
       
@@ -196,6 +429,10 @@ class MatchmakingService {
       
       // Get fresh game data with both players
       const completeGame = await gameService.getGameById(game.id);
+
+      // Track successful match
+      this.trackMatch(player1.userId, player2.userId, game.id);
+      this.trackMatch(player2.userId, player1.userId, game.id);
 
       logger.info('Matched game created', { 
         gameId: game.id,
@@ -255,6 +492,85 @@ class MatchmakingService {
     const queueSize = this.queues[gameType].length;
     // Simple estimation: 30 seconds base + 15 seconds per person ahead
     return Math.max(30, queueSize * 15);
+  }
+
+  /**
+   * Track queue session
+   */
+  trackQueueSession(userId, queueEntry) {
+    if (!this.queueHistory.has(userId)) {
+      this.queueHistory.set(userId, []);
+    }
+
+    const session = {
+      sessionId: queueEntry.sessionId,
+      gameType: queueEntry.gameType,
+      timeControl: queueEntry.timeControl,
+      joinedAt: queueEntry.joinedAt,
+      leftAt: null,
+      outcome: 'active', // active, matched, left, timeout
+      waitTime: null
+    };
+
+    this.queueHistory.get(userId).push(session);
+  }
+
+  /**
+   * Update queue session
+   */
+  updateQueueSession(userId, sessionId, outcome, leftAt) {
+    const history = this.queueHistory.get(userId);
+    if (history) {
+      const session = history.find(s => s.sessionId === sessionId);
+      if (session) {
+        session.outcome = outcome;
+        session.leftAt = leftAt;
+        session.waitTime = leftAt.getTime() - session.joinedAt.getTime();
+      }
+    }
+  }
+
+  /**
+   * Track successful match
+   */
+  trackMatch(userId, opponentId, gameId) {
+    if (!this.matchHistory.has(userId)) {
+      this.matchHistory.set(userId, []);
+    }
+
+    const match = {
+      gameId,
+      opponentId,
+      createdAt: new Date()
+    };
+
+    this.matchHistory.get(userId).push(match);
+  }
+
+  /**
+   * Generate unique session ID
+   */
+  generateSessionId() {
+    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  /**
+   * Check if date is today
+   */
+  isToday(date) {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  }
+
+  /**
+   * Calculate average wait time from history
+   */
+  calculateAverageWaitTime(history) {
+    const completedSessions = history.filter(s => s.waitTime !== null);
+    if (completedSessions.length === 0) return 0;
+    
+    const totalWaitTime = completedSessions.reduce((sum, s) => sum + s.waitTime, 0);
+    return Math.round(totalWaitTime / completedSessions.length / 1000); // Convert to seconds
   }
 
   /**
@@ -331,7 +647,12 @@ class MatchmakingService {
     
     for (let i = queue.length - 1; i >= 0; i--) {
       if (queue[i].joinedAt < tenMinutesAgo) {
-        logger.info('Removing old queue entry', { userId: queue[i].userId });
+        const entry = queue[i];
+        
+        // Update session as timed out
+        this.updateQueueSession(entry.userId, entry.sessionId, 'timeout', new Date());
+        
+        logger.info('Removing old queue entry', { userId: entry.userId });
         queue.splice(i, 1);
       }
     }
