@@ -551,21 +551,36 @@ class MatchmakingService {
   }
 
   /**
-   * Create a matched game
+   * Track queue session for a user
+   */
+  trackQueueSession(userId, queueEntry) {
+    if (!this.queueHistory.has(userId)) {
+      this.queueHistory.set(userId, []);
+    }
+    this.queueHistory.get(userId).push({
+      sessionId: queueEntry.sessionId,
+      gameType: queueEntry.gameType,
+      timeControl: queueEntry.timeControl,
+      joinedAt: queueEntry.joinedAt,
+      status: 'active'
+    });
+  }
+
+  /**
+   * Create a matched game and notify sockets
    */
   async createMatchedGame(player1, player2) {
     try {
       // Randomly assign colors
       const player1Color = Math.random() < 0.5 ? 'white' : 'black';
       const player2Color = player1Color === 'white' ? 'black' : 'white';
-      
-      // Create game using database with better error handling
+
+      // Prepare game payload
       const gameData = {
         game_type: player1.gameType,
         time_control: player1.timeControl,
         is_rated: true,
         status: 'active',
-        // FIX: Use proper user IDs (ensure they exist in database)
         white_player_id: player1Color === 'white' ? player1.userId : player2.userId,
         black_player_id: player1Color === 'black' ? player1.userId : player2.userId,
         created_at: new Date(),
@@ -574,34 +589,26 @@ class MatchmakingService {
 
       let game;
       try {
-        // Verify users exist before creating game
-        const user1Exists = await db.User.findByPk(player1.userId);
-        const user2Exists = await db.User.findByPk(player2.userId);
-        
-        if (!user1Exists || !user2Exists) {
-          throw new Error('One or both users not found in database');
-        }
-        
+        // Ensure users exist
+        const [u1, u2] = await Promise.all([
+          db.User.findByPk(player1.userId),
+          db.User.findByPk(player2.userId)
+        ]);
+        if (!u1 || !u2) throw new Error('One or both users not found in database');
+
         game = await db.Game.create(gameData);
         logger.info('Game created successfully in database', { gameId: game.id });
-        
-      } catch (dbError) {
-        logger.error('Database error creating game', { error: dbError.message });
-        // Create a mock game for testing purposes
+      } catch (dbErr) {
+        logger.warn('DB error creating game, falling back to mock', { error: dbErr.message });
         game = {
           id: 'game_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
           ...gameData
         };
-        logger.info('Created mock game for testing', { gameId: game.id });
       }
 
-      // Create player records with better error handling
+      // Create player rows only for real DB game
       try {
-        if (typeof game.id === 'string' && game.id.startsWith('game_')) {
-          // Mock game - skip database player creation
-          logger.info('Skipping player record creation for mock game');
-        } else {
-          // Real game - create player records
+        if (!(typeof game.id === 'string' && game.id.startsWith('game_'))) {
           await Promise.all([
             db.Player.create({
               game_id: game.id,
@@ -618,49 +625,43 @@ class MatchmakingService {
               joined_at: new Date()
             })
           ]);
-          logger.info('Player records created successfully');
         }
-      } catch (dbError) {
-        logger.warn('Error creating player records, continuing without them', { 
-          error: dbError.message,
-          gameId: game.id 
-        });
-        // Don't fail the entire match creation for this
+      } catch (playerErr) {
+        logger.warn('Error creating player records', { error: playerErr.message, gameId: game.id });
       }
 
-      // Track match in history
+      // Track match for both players
       this.trackMatch(player1.userId, { gameId: game.id, opponent: player2.userId });
       this.trackMatch(player2.userId, { gameId: game.id, opponent: player1.userId });
 
-      logger.info('Matched game created successfully', { 
+      logger.info('Matched game created successfully', {
         gameId: game.id,
         player1: player1.userId,
         player2: player2.userId,
         gameType: player1.gameType
       });
 
+      // Emit game-started event via socket service
+      try {
+        if (this.socketService && typeof this.socketService.notifyGameStart === 'function') {
+          // Enrich minimal players array if needed for consumers
+          if (!game.players || game.players.length === 0) {
+            game.players = [
+              { user_id: player1.userId, color: player1Color },
+              { user_id: player2.userId, color: player2Color }
+            ];
+          }
+          this.socketService.notifyGameStart(game);
+        }
+      } catch (notifyErr) {
+        logger.warn('Failed to notify game start', { error: notifyErr.message, gameId: game.id });
+      }
+
       return { game };
     } catch (error) {
       logger.error('Failed to create matched game', { error: error.message });
       throw error;
     }
-  }
-
-  /**
-   * Track queue session
-   */
-  trackQueueSession(userId, queueEntry) {
-    if (!this.queueHistory.has(userId)) {
-      this.queueHistory.set(userId, []);
-    }
-    
-    this.queueHistory.get(userId).push({
-      sessionId: queueEntry.sessionId,
-      gameType: queueEntry.gameType,
-      timeControl: queueEntry.timeControl,
-      joinedAt: queueEntry.joinedAt,
-      status: 'active'
-    });
   }
 
   /**

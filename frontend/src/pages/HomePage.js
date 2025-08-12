@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useGameStore } from '../store/gameStore';
-import { gameAPI } from '../services/api';
+import { gameAPI, matchmakingAPI } from '../services/api';
 import socketService from '../services/socketService';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -27,6 +27,20 @@ const HomePage = () => {
   useEffect(() => {
     if (token) {
       socketService.connect(token);
+      // Check current queue status on mount (in case of refresh)
+      (async () => {
+        try {
+          const { data } = await matchmakingAPI.getStatus();
+          const status = data?.data || data; // backend uses envelope
+          if (status?.inQueue) {
+            joinQueueStore();
+            setQueueMessage('In queue...');
+          }
+        } catch (e) {
+          // Non-blocking if status fails
+          console.debug('Queue status check skipped/failed');
+        }
+      })();
       
       // Listen for queue events
       socketService.onQueueJoined((data) => {
@@ -85,32 +99,47 @@ const HomePage = () => {
     setLoading(true);
     setError('');
     
-    try {
-      // Connect socket and join queue
-      socketService.connect(token);
-      
-      // Send player data with the queue join request
-      const playerData = {
-        name: user?.username || 'Anonymous',
-        rating: user?.rating || 1200,
-        gameType: 'rapid'
-      };
-      
-      console.log('📤 Sending player data:', playerData);
-      socketService.joinQueue(playerData);
-      joinQueueStore();
-      setQueueMessage('Looking for opponent...');
-    } catch (err) {
-      console.error('Error joining queue:', err);
-      setError('Failed to join queue. Please try again.');
-      setLoading(false);
-    }
+    (async () => {
+      try {
+        // Ensure socket is connected to receive realtime events
+        socketService.connect(token);
+
+        // Prefer HTTP API to join queue (per OpenAPI - snake_case fields)
+        // Broaden rating_range to ensure players can match regardless of rating
+        const preferences = { 
+          game_type: 'rapid', 
+          time_control: '10+0', 
+          rating_range: { min: 0, max: 3000 }
+        };
+        console.log('📤 Joining queue via API with prefs:', preferences);
+        await matchmakingAPI.joinQueue(preferences);
+
+        joinQueueStore();
+        setQueueMessage('Looking for opponent...');
+      } catch (err) {
+        console.error('Error joining queue:', err);
+        const valMsg = (err.response?.data?.data?.errors && Array.isArray(err.response.data.data.errors)
+          ? err.response.data.data.errors.map(e => e.message).join('; ')
+          : undefined) || err.response?.data?.message;
+        setError(valMsg || 'Failed to join queue. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    })();
   };
 
   const handleLeaveQueue = () => {
-    socketService.leaveQueue();
-    leaveQueueStore();
-    setQueueMessage('Looking for opponent...');
+    (async () => {
+      try {
+        await matchmakingAPI.leaveQueue();
+      } catch (e) {
+        console.debug('Leave queue API failed, emitting socket fallback');
+        socketService.leaveQueue();
+      } finally {
+        leaveQueueStore();
+        setQueueMessage('Looking for opponent...');
+      }
+    })();
   };
 
   const handleLogout = () => {

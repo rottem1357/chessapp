@@ -241,18 +241,18 @@ class SocketService {
       }
 
       console.log('✅ Move successful, broadcasting to game');
-      // Broadcast move to all players in the game
+      // Broadcast move to all players in the game with full updated game state
       this.broadcastToGame(gameId, SOCKET_EVENTS.MOVE_MADE, {
         move: result.move,
-        gameState: result.gameState
+        game: result.game
       });
 
       // Check for game end
-      if (result.gameState && result.gameState.isGameOver) {
+      if (result.game && result.game.status === 'finished') {
         this.broadcastToGame(gameId, SOCKET_EVENTS.GAME_ENDED, {
-          reason: result.gameState.status,
-          winner: result.gameState.winner,
-          gameState: result.gameState
+          reason: result.game.result_reason,
+          winner: result.game.players?.find(p => p.is_winner)?.user_id || null,
+          game: result.game
         });
       }
 

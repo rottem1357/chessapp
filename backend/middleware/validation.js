@@ -482,12 +482,34 @@ const validateJoinGame = [
 const validateMakeMove = [
   validators.uuidParam('gameId'),
   
+  // Accept either a SAN/notation string or an object { from, to, promotion }
   body('move')
-    .trim()
-    .notEmpty()
-    .withMessage('Move is required')
-    .isLength({ min: 2, max: 10 })
-    .withMessage('Move must be between 2-10 characters'),
+    .custom((value, { req }) => {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed.length < 2 || trimmed.length > 10) {
+          throw new Error('Move must be a string between 2-10 characters');
+        }
+        // Normalize the string value back onto req.body
+        req.body.move = trimmed;
+        return true;
+      }
+      if (typeof value === 'object' && value !== null) {
+        const { from, to, promotion } = value;
+        if (typeof from !== 'string' || from.length !== 2) {
+          throw new Error('Move.from must be a 2-character square');
+        }
+        if (typeof to !== 'string' || to.length !== 2) {
+          throw new Error('Move.to must be a 2-character square');
+        }
+        if (promotion && !['q','r','b','n','Q','R','B','N'].includes(promotion)) {
+          throw new Error('Promotion piece must be q, r, b, or n');
+        }
+        // Keep object form; gameService supports object directly
+        return true;
+      }
+      throw new Error('Move must be a string or an object with from/to');
+    }),
   
   body('time_spent_ms')
     .optional()

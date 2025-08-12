@@ -5,13 +5,14 @@ import { Chess } from 'chess.js';
 import { useGameStore } from '../../store/gameStore';
 import { useAuthStore } from '../../store/authStore';
 import socketService from '../../services/socketService';
+import { gameAPI } from '../../services/api';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import styles from './GameBoard.module.css';
 
 const GameBoard = () => {
   const { gameId } = useParams();
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
   const { 
     currentGame, 
     currentFen, 
@@ -39,10 +40,42 @@ const GameBoard = () => {
       status 
     });
 
+    // Ensure socket connection (handles direct navigation to /game/:id)
+    if (!socketService.isConnected && token) {
+      console.log('🔌 Connecting socket from GameBoard...');
+      socketService.connect(token);
+    }
+
     // Join the game room
     if (gameId) {
       socketService.joinGame(gameId);
     }
+
+    // Subscribe to socket move events to live-update both players
+    socketService.onMoveMade(({ move, game }) => {
+      try {
+        if (game?.current_fen) {
+          chess.load(game.current_fen);
+        }
+        // Use full mapping so current_fen -> currentFen and other fields update reliably
+        if (game) {
+          setCurrentGame(game);
+          // Derive and set player's color if possible
+          const meId = user?.id || user?.user_id || user?._id;
+          let color = null;
+          const me = game.players?.find(p => (p.user_id || p.id || p.userId) === meId);
+          if (me?.color) color = me.color;
+          if (!color && meId) {
+            if (game.white_player_id === meId) color = 'white';
+            if (game.black_player_id === meId) color = 'black';
+          }
+          if (color) setPlayerColor(color);
+        }
+        // Moves history and turn come from server via `game`; avoid local toggles
+      } catch (e) {
+        console.error('❌ Failed to apply socket move:', e);
+      }
+    });
 
     // If we don't have game data, try to load from localStorage
     if (!currentGame && gameId) {
@@ -57,10 +90,30 @@ const GameBoard = () => {
           if (gameData.gameState) {
             console.log('🎯 Setting game state from stored data:', gameData.gameState);
             setCurrentGame(gameData.gameState);
-            setPlayerColor(gameData.color);
+            if (gameData.color) setPlayerColor(gameData.color);
+            else {
+              const meId = user?.id || user?.user_id || user?._id;
+              let color = null;
+              const me = gameData.gameState.players?.find(p => (p.user_id || p.id || p.userId) === meId);
+              if (me?.color) color = me.color;
+              if (!color && meId) {
+                if (gameData.gameState.white_player_id === meId) color = 'white';
+                if (gameData.gameState.black_player_id === meId) color = 'black';
+              }
+              if (color) setPlayerColor(color);
+            }
           } else {
             console.log('🎯 Setting game data directly:', gameData);
             setCurrentGame(gameData);
+            const meId = user?.id || user?.user_id || user?._id;
+            let color = null;
+            const me = gameData.players?.find(p => (p.user_id || p.id || p.userId) === meId);
+            if (me?.color) color = me.color;
+            if (!color && meId) {
+              if (gameData.white_player_id === meId) color = 'white';
+              if (gameData.black_player_id === meId) color = 'black';
+            }
+            if (color) setPlayerColor(color);
           }
           
           // Clear the stored data
@@ -69,6 +122,34 @@ const GameBoard = () => {
           console.error('❌ Error loading stored game data:', error);
         }
       }
+      
+      // Also hydrate from API in case localStorage is absent or stale
+      (async () => {
+        try {
+          console.log('🌐 Fetching game state from API');
+          const { data } = await gameAPI.getGame(gameId);
+          const payload = data?.data || data; // handle envelope
+          if (payload) {
+            setCurrentGame(payload);
+            // Set player's color from payload
+            const meId = user?.id || user?.user_id || user?._id;
+            let color = null;
+            const me = payload.players?.find(p => (p.user_id || p.id || p.userId) === meId);
+            if (me?.color) color = me.color;
+            if (!color && meId) {
+              if (payload.white_player_id === meId) color = 'white';
+              if (payload.black_player_id === meId) color = 'black';
+            }
+            if (color) setPlayerColor(color);
+            if (payload.current_fen) {
+              chess.load(payload.current_fen);
+              updateGameState({ current_fen: payload.current_fen });
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Failed to hydrate game via API', e);
+        }
+      })();
     }
 
     // Listen for game updates
@@ -78,36 +159,7 @@ const GameBoard = () => {
       chess.load(data.current_fen);
     });
 
-    // Listen for move updates
-    socketService.onMoveUpdate((data) => {
-      console.log('📥 Move update received:', data);
-      
-      // Apply the move to our local chess instance
-      try {
-        const move = chess.move(data.move);
-        console.log('✅ Applied move to local board:', move);
-        
-        addMove(data);
-        updateGameState({ current_fen: chess.fen() });
-        
-        // Highlight the move using the move object properties
-        if (data.move && data.move.from && data.move.to) {
-          setMoveSquares({
-            [data.move.from]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
-            [data.move.to]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' }
-          });
-          
-          setTimeout(() => setMoveSquares({}), 1000);
-        }
-      } catch (error) {
-        console.error('❌ Error applying move update:', error);
-        // If move fails, sync with server state
-        if (data.gameState && data.gameState.current_fen) {
-          chess.load(data.gameState.current_fen);
-          updateGameState({ current_fen: data.gameState.current_fen });
-        }
-      }
-    });
+    // Remove legacy onMoveUpdate path; we rely on onMoveMade above that sends full game state
 
     // Listen for game end
     socketService.onGameEnd((data) => {
@@ -116,9 +168,24 @@ const GameBoard = () => {
     });
 
     return () => {
+      // Cleanup any listeners when unmounting
+      if (socketService && socketService.socket) {
+        socketService.socket.off('move-made');
+      }
       socketService.removeAllListeners();
     };
   }, [gameId, updateGameState, addMove, chess, currentGame]);
+
+  // Derive playerColor once game and user are known
+  useEffect(() => {
+    if (!playerColor && currentGame?.players && user) {
+      const meId = user?.id || user?.user_id || user?._id;
+      const me = currentGame.players.find(p => (p.user_id || p.id || p.userId) === meId);
+      if (me?.color) {
+        setPlayerColor(me.color);
+      }
+    }
+  }, [playerColor, currentGame, user, setPlayerColor]);
 
   // Load the current position
   useEffect(() => {
@@ -128,8 +195,10 @@ const GameBoard = () => {
   }, [currentFen, chess]);
 
   const onDrop = (sourceSquare, targetSquare) => {
+    console.log('🧪 onDrop attempt', { sourceSquare, targetSquare, currentTurn, playerColor, status });
     // Check if it's the player's turn
     if (currentTurn !== playerColor) {
+      console.warn('⛔ Not your turn', { currentTurn, playerColor });
       return false;
     }
 
@@ -159,17 +228,32 @@ const GameBoard = () => {
 
       if (move) {
         console.log('✅ Valid move made:', move);
-        
-        // Revert the move - we'll apply it when server confirms
+
+        // Revert the move - apply when server confirms
         chess.undo();
-        
-        // Send move to server
-        socketService.makeMove(gameId, {
-          from: sourceSquare,
-          to: targetSquare,
-          promotion: move.promotion
-        });
-        
+
+        // Prefer socket; fallback to HTTP if socket unavailable
+        if (socketService?.isConnected) {
+          // Send SAN over socket for consistency with backend validation
+          socketService.makeMove(gameId, move.san);
+        } else {
+          // HTTP fallback
+          (async () => {
+            try {
+              await gameAPI.makeMove(gameId, { move: move.san });
+              const { data } = await gameAPI.getGame(gameId);
+              const payload = data?.data || data;
+              if (payload?.current_fen) {
+                chess.load(payload.current_fen);
+                // Update the entire game state so turn/status/timers are correct
+                updateGameState(payload);
+              }
+            } catch (e) {
+              console.error('❌ HTTP move failed:', e);
+            }
+          })();
+        }
+
         return true;
       }
     } catch (error) {
@@ -179,10 +263,47 @@ const GameBoard = () => {
     return false;
   };
 
+  // Listen for invalid-move and error events for diagnostics
+  useEffect(() => {
+    if (!socketService?.socket) return;
+    const invalidHandler = (payload) => {
+      console.warn('🚫 INVALID MOVE from server:', payload);
+    };
+    const errorHandler = (payload) => {
+      console.error('🔥 SOCKET ERROR:', payload);
+    };
+    socketService.socket.on('invalid-move', invalidHandler);
+    socketService.socket.on('error', errorHandler);
+    return () => {
+      socketService.socket.off('invalid-move', invalidHandler);
+      socketService.socket.off('error', errorHandler);
+    };
+  }, [socketService?.socket]);
+
+  // Ensure we join the game room so we get room-scoped updates
+  useEffect(() => {
+    if (socketService?.isConnected && gameId) {
+      try {
+        socketService.joinGame(gameId);
+      } catch (e) {
+        console.warn('⚠️ Failed to join game room', e);
+      }
+    }
+  }, [socketService?.isConnected, gameId]);
+
   const handleResign = () => {
+    if (!gameId) return;
     if (window.confirm('Are you sure you want to resign?')) {
-      // Implement resign logic
-      console.log('Player resigned');
+      (async () => {
+        try {
+          await gameAPI.resignGame(gameId);
+          console.log('🏳️ Resigned successfully');
+          // Optionally navigate back to home after resign
+          window.location.href = '/';
+        } catch (e) {
+          console.error('❌ Failed to resign:', e);
+        }
+      })();
     }
   };
 

@@ -89,11 +89,14 @@ export const gameAPI = {
   joinGame: (gameId, password = null) => apiClient.post(`/games/${gameId}/join`, { password }),
   
   // POST /api/games/:gameId/moves
-  makeMove: (gameId, moveData) => apiClient.post(`/games/${gameId}/moves`, {
-    move: moveData.move,
-    time_spent_ms: moveData.timeSpent || 0,
-    promotion: moveData.promotion || null
-  }),
+  makeMove: (gameId, moveData) => {
+    const payload = {
+      move: moveData.move,
+      time_spent_ms: moveData.timeSpent || 0,
+      ...(moveData.promotion ? { promotion: moveData.promotion } : {})
+    };
+    return apiClient.post(`/games/${gameId}/moves`, payload);
+  },
   
   // POST /api/games/:gameId/resign
   resignGame: (gameId) => apiClient.post(`/games/${gameId}/resign`),
@@ -103,6 +106,42 @@ export const gameAPI = {
   
   // POST /api/games/:gameId/accept-draw
   acceptDraw: (gameId) => apiClient.post(`/games/${gameId}/accept-draw`),
+};
+
+// Matchmaking API - matches backend/docs/openapi.yaml
+export const matchmakingAPI = {
+  // POST /api/matchmaking/queue
+  joinQueue: (preferences = {}) => apiClient.post('/matchmaking/queue', preferences),
+
+  // DELETE /api/matchmaking/queue
+  leaveQueue: () => apiClient.delete('/matchmaking/queue'),
+
+  // GET /api/matchmaking/status
+  getStatus: () => apiClient.get('/matchmaking/status'),
+
+  // GET /api/matchmaking/stats
+  getStats: () => apiClient.get('/matchmaking/stats'),
+
+  // GET /api/matchmaking/stats/detailed
+  getDetailedStats: () => apiClient.get('/matchmaking/stats/detailed'),
+
+  // GET /api/matchmaking/preferences
+  getPreferences: () => apiClient.get('/matchmaking/preferences'),
+
+  // PUT /api/matchmaking/preferences
+  updatePreferences: (prefs) => apiClient.put('/matchmaking/preferences', prefs),
+
+  // GET /api/matchmaking/history
+  getHistory: (params = {}) => apiClient.get('/matchmaking/history', { params }),
+
+  // GET /api/matchmaking/optimal-times
+  getOptimalTimes: () => apiClient.get('/matchmaking/optimal-times'),
+
+  // POST /api/matchmaking/cancel-match
+  cancelMatch: () => apiClient.post('/matchmaking/cancel-match'),
+
+  // POST /api/matchmaking/report-issue
+  reportIssue: (payload) => apiClient.post('/matchmaking/report-issue', payload),
 };
 
 // Friends API - from your tests structure
