@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "install-all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "predev": "node scripts/ensure-redis.js",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "cd frontend && npm start",
     "dev:backend": "cd backend && npm run dev",

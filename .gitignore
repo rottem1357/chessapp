@@ -98,3 +98,6 @@ temp/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+#zip files
+*.zip
