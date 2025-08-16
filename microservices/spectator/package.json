@@ -1,0 +1,21 @@
+{
+  "name": "spectator-service",
+  "version": "1.0.0",
+  "description": "Service providing game state and move playback for spectators",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ioredis": "^4.28.5",
+    "morgan": "^1.10.0",
+    "express-validator": "^6.14.3"
+  },
+  "devDependencies": {
+    "jest": "^29.6.4",
+    "supertest": "^6.3.3",
+    "ioredis-mock": "^5.9.1"
+  }
+}
