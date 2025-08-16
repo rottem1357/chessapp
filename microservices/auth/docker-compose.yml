@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  # Auth Service
+  auth-service:
+    build: .
+    ports:
+      - "8083:8083"
+    environment:
+      - NODE_ENV=development
+      - AUTH_PORT=8083
+      - DB_HOST=auth-postgres
+      - DB_PORT=5432
+      - DB_NAME=auth_db
+      - DB_USER=auth_user
+      - DB_PASSWORD=auth_password
+      - JWT_SECRET=dev-jwt-secret-change-in-production
+      - REDIS_HOST=auth-redis
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+      auth-redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/usr/src/app/logs
+    networks:
+      - auth-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL Database for Auth Service
+  auth-postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=auth_db
+      - POSTGRES_USER=auth_user
+      - POSTGRES_PASSWORD=auth_password
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    volumes:
+      - auth-postgres-data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - auth-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for Auth Service (sessions, caching)
+  auth-redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"  # Different port to avoid conflicts
+    volumes:
+      - auth-redis-data:/data
+    networks:
+      - auth-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  # Database migration runner (runs once)
+  auth-migrate:
+    build: .
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=auth-postgres
+      - DB_PORT=5432
+      - DB_NAME=auth_db
+      - DB_USER=auth_user
+      - DB_PASSWORD=auth_password
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    networks:
+      - auth-network
+    command: npm run migrate
+    restart: "no"
+
+volumes:
+  auth-postgres-data:
+  auth-redis-data:
+
+networks:
+  auth-network:
+    driver: bridge

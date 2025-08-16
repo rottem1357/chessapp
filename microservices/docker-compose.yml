@@ -1,0 +1,63 @@
+# microservices/docker-compose.yml
+version: '3.8'
+
+services:
+  # Gateway Service
+  gateway:
+    build: ./gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - GATEWAY_PORT=8080
+      - JWT_SECRET=dev-secret-key
+      - CORS_ORIGINS=http://localhost:3000
+      # Initially route everything to existing monolith
+      - AUTH_SERVICE_URL=http://host.docker.internal:5000
+      - PROFILES_SERVICE_URL=http://host.docker.internal:5000
+      - RATINGS_SERVICE_URL=http://host.docker.internal:5000
+      - MATCHMAKING_SERVICE_URL=http://host.docker.internal:5000
+      - GAME_ORCHESTRATOR_URL=http://host.docker.internal:5000
+      - AI_SERVICE_URL=http://host.docker.internal:5000
+      - GAME_ARCHIVE_URL=http://host.docker.internal:5000
+      - ADMIN_SERVICE_URL=http://host.docker.internal:5000
+    volumes:
+      - ./gateway:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      - redis
+    networks:
+      - chess-network
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - chess-network
+
+  # PostgreSQL for persistent data
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=chess_db
+      - POSTGRES_USER=chess_user
+      - POSTGRES_PASSWORD=chess_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - chess-network
+
+volumes:
+  redis-data:
+  postgres-data:
+
+networks:
+  chess-network:
+    driver: bridge

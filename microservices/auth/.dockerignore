@@ -1,0 +1,22 @@
+# microservices/auth/.dockerignore
+node_modules
+npm-debug.log
+logs
+.env
+.env.local
+.env.*.local
+.git
+.gitignore
+README.md
+.nyc_output
+coverage
+.coverage
+*.md
+.DS_Store
+.vscode
+.idea
+*.log
+tests
+test
+*.test.js
+*.spec.js
