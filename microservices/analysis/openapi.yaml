@@ -1,0 +1,29 @@
+openapi: 3.0.0
+info:
+  title: Analysis Service API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+  /analysis/jobs:
+    post:
+      summary: Create analysis job
+      responses:
+        '200':
+          description: Job created
+  /analysis/{gameId}:
+    get:
+      summary: Get analysis for a game
+      parameters:
+        - in: path
+          name: gameId
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Analysis data

@@ -1,0 +1,23 @@
+openapi: 3.0.0
+info:
+  title: Fairplay Service API
+  version: 1.0.0
+paths:
+  /analyze:
+    post:
+      summary: Analyze a game for fairness
+      responses:
+        '200':
+          description: Analysis queued
+  /report:
+    post:
+      summary: Report suspected cheating
+      responses:
+        '200':
+          description: Report received
+  /flagged:
+    get:
+      summary: Get list of flagged games
+      responses:
+        '200':
+          description: Flagged games

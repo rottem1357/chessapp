@@ -1,0 +1,23 @@
+openapi: 3.0.0
+info:
+  title: Chat Service API
+  version: 1.0.0
+paths:
+  /chat/history:
+    get:
+      summary: Retrieve chat history
+      responses:
+        '200':
+          description: Chat history
+  /presence/{user}:
+    get:
+      summary: Get presence status of a user
+      parameters:
+        - in: path
+          name: user
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Presence information

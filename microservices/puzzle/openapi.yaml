@@ -1,0 +1,41 @@
+openapi: 3.0.0
+info:
+  title: Puzzle Service API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+  /puzzles/next:
+    get:
+      summary: Get next puzzle
+      responses:
+        '200':
+          description: Puzzle data
+  /puzzle-rush/start:
+    post:
+      summary: Start a puzzle rush session
+      responses:
+        '200':
+          description: Session started
+  /puzzle-rush/move:
+    post:
+      summary: Submit a move in puzzle rush
+      responses:
+        '200':
+          description: Move accepted
+  /puzzle-rush/finish:
+    post:
+      summary: Finish a puzzle rush session
+      responses:
+        '200':
+          description: Session finished
+  /leaderboards/puzzle-rush:
+    get:
+      summary: Get puzzle rush leaderboard
+      responses:
+        '200':
+          description: Leaderboard data

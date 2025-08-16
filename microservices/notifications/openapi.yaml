@@ -1,0 +1,17 @@
+openapi: 3.0.0
+info:
+  title: Notifications Service API
+  version: 1.0.0
+paths:
+  /notify:
+    post:
+      summary: Send a notification
+      responses:
+        '200':
+          description: Notification sent
+  /devices/register:
+    post:
+      summary: Register a device
+      responses:
+        '200':
+          description: Device registered
