@@ -1,0 +1,15 @@
+{
+  "annotations": {"list": []},
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Matchmaking Requests",
+      "targets": [
+        {"expr": "sum(rate(matchmaking_requests_total[5m]))", "legendFormat": "requests/sec"}
+      ]
+    }
+  ],
+  "title": "Matchmaking",
+  "schemaVersion": 27,
+  "version": 1
+}
