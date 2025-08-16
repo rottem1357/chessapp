@@ -9,3 +9,11 @@
 **Data**: JSONB per move annotations; S3 for heavy artifacts.
 
 **Testing**: Throughput under burst; partial results.
+
+## Development
+
+```bash
+npm install
+npm test
+npm start
+```
