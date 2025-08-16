@@ -1,0 +1,11 @@
+groups:
+  - name: slo-burn-rate
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_request_duration_seconds_bucket{le="+Inf"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: High error rate causing SLO burn
+          description: More than 5% of requests are failing over the last 5 minutes.
