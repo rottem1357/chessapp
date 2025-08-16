@@ -9,3 +9,16 @@
 **APIs**: `GET /archive/:gameId` (for export).
 
 **Testing**: Idempotent writes; late events; partition strategy.
+
+## Development
+
+```bash
+npm install
+npm start
+```
+
+Run the lightweight test suite:
+
+```bash
+npm test
+```
