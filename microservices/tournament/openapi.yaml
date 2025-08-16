@@ -1,0 +1,35 @@
+openapi: 3.0.0
+info:
+  title: Tournament Service API
+  version: 1.0.0
+paths:
+  /tournaments:
+    post:
+      summary: Create a tournament
+      responses:
+        '200':
+          description: Tournament created
+  /tournaments/{id}/start:
+    post:
+      summary: Start a tournament
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tournament started
+  /tournaments/{id}/standings:
+    get:
+      summary: Get tournament standings
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Standings data

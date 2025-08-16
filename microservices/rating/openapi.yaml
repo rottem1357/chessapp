@@ -1,0 +1,29 @@
+openapi: 3.0.0
+info:
+  title: Rating Service API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+  /ratings/{userId}:
+    get:
+      summary: Get ratings for a user
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ratings data
+  /ratings/recalc:
+    post:
+      summary: Recalculate ratings
+      responses:
+        '200':
+          description: Recalculation started

@@ -1,0 +1,35 @@
+openapi: 3.0.0
+info:
+  title: Gateway Admin API
+  version: 1.0.0
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      responses:
+        '200':
+          description: OK
+  /readyz:
+    get:
+      summary: Readiness probe
+      responses:
+        '200':
+          description: OK
+  /flags/{key}:
+    put:
+      summary: Update feature flag
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Flag updated
+  /registry/:
+    get:
+      summary: List registered services
+      responses:
+        '200':
+          description: Registry list

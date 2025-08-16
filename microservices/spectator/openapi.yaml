@@ -1,0 +1,29 @@
+openapi: 3.0.0
+info:
+  title: Spectator Service API
+  version: 1.0.0
+paths:
+  /games/{id}/state:
+    get:
+      summary: Get current game state
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Game state
+  /games/{id}/moves:
+    get:
+      summary: Get moves for a game
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Moves list
