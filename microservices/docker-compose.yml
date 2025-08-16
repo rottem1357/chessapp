@@ -54,6 +54,23 @@ services:
     networks:
       - chess-network
 
+  # Spectator/Playback Service
+  spectator:
+    build: ./spectator
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./spectator:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      - redis
+    networks:
+      - chess-network
+
 volumes:
   redis-data:
   postgres-data:
