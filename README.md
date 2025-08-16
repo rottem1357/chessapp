@@ -2,6 +2,8 @@
 
 A real-time chess application similar to chess.com, built with React and Node.js.
 
+This project is transitioning from a monolithic backend to a microservices architecture.
+
 ## Features
 
 - Real-time multiplayer chess games
@@ -89,6 +91,27 @@ npm start
 
 ```
 chessapp/
+├── microservices/     # Independent backend services
+│   ├── gateway/            # API Gateway
+│   ├── auth/               # Auth Service
+│   ├── profile/            # User/Profile Service
+│   ├── matchmaking/        # Matchmaking Service
+│   ├── game/               # Game Service (Realtime)
+│   ├── game-coordinator/   # Game Coordinator / Router
+│   ├── game-persistence/   # Game Persistence Service
+│   ├── rating/             # Rating Service
+│   ├── spectator/          # Spectator/Playback Service
+│   ├── ai/                 # AI Move Service
+│   ├── analysis/           # Analysis Service
+│   ├── puzzle/             # Puzzle Service
+│   ├── chat/               # Chat & Presence Service
+│   ├── tournament/         # Tournament Service
+│   ├── clubs/              # Clubs/Teams Service
+│   ├── notifications/      # Notifications Service
+│   ├── fairplay/           # Fair-Play / Anti-Cheat Service
+│   ├── gateway-admin/      # Gateway Admin / Config Service
+│   ├── telemetry/          # Telemetry & Observability
+│   └── media/              # File/Media Service
 ├── frontend/          # React frontend
 │   ├── src/
 │   │   ├── components/    # Reusable components
@@ -96,7 +119,7 @@ chessapp/
 │   │   ├── hooks/         # Custom hooks
 │   │   └── services/      # API services
 │   └── public/
-├── backend/           # Node.js backend
+├── backend/           # Legacy monolith (to be decomposed)
 │   ├── server.js      # Main server file
 │   └── .env           # Environment variables
 └── package.json       # Root package.json for scripts
