@@ -1,15 +1,17 @@
 const request = require('supertest');
-const { app, profiles, friends, redis } = require('../server');
+const app = require('../server');
+const db = require('../db');
+const redis = require('../utils/redis');
 
 afterAll(() => {
   redis.disconnect();
 });
 
 beforeEach(() => {
-  for (const key of Object.keys(profiles)) {
-    delete profiles[key];
+  for (const key of Object.keys(db.profiles)) {
+    delete db.profiles[key];
   }
-  friends.length = 0;
+  db.friends.length = 0;
 });
 
 describe('Profile Service', () => {
