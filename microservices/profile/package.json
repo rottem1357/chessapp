@@ -1,0 +1,18 @@
+{
+  "name": "profile-service",
+  "version": "0.1.0",
+  "description": "User profile microservice",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ioredis": "^5.3.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  }
+}
