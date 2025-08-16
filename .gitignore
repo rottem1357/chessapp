@@ -101,3 +101,5 @@ Thumbs.db
 
 #zip files
 *.zip
+
+microservices/**/package-lock.json
