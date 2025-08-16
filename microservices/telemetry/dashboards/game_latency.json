@@ -1,0 +1,15 @@
+{
+  "annotations": {"list": []},
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Game Move Latency P95",
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(game_move_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95"}
+      ]
+    }
+  ],
+  "title": "Game Latency",
+  "schemaVersion": 27,
+  "version": 1
+}

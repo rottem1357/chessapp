@@ -11,6 +11,7 @@ const cors = require('cors');
 // Import configuration and utilities
 const config = require('./config');
 const logger = require('./utils/logger');
+const telemetry = require('./telemetry');
 
 // Import middleware
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
@@ -58,6 +59,12 @@ app.get('/', (req, res) => {
     environment: config.server.environment,
     timestamp: new Date().toISOString()
   });
+});
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', telemetry.register.contentType);
+  res.end(await telemetry.register.metrics());
 });
 
 // API routes

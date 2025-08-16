@@ -1,0 +1,15 @@
+{
+  "annotations": {"list": []},
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Database QPS",
+      "targets": [
+        {"expr": "sum(rate(db_query_duration_seconds_count[5m]))", "legendFormat": "qps"}
+      ]
+    }
+  ],
+  "title": "DB QPS",
+  "schemaVersion": 27,
+  "version": 1
+}
