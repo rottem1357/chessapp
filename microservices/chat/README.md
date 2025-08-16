@@ -1,12 +1,24 @@
 # Chat & Presence Service
 
-**Purpose**: In-game chat, lobby, DMs (basic), online status.
+Provides lobby and direct message chat along with simple online presence tracking.
 
-**Sockets/APIs**:
-- `chat:send`
-- `GET /chat/history`
-- `GET /presence/:user`
+## Sockets & APIs
+- `chat:send` – broadcast a chat message to a room
+- `GET /chat/history` – retrieve last 50 messages for a room
+- `GET /presence/:user` – check if a user is online
 
-**Data**: Redis presence `presence:{userId}` TTL; Postgres chat (TTL/retention policy).
+## Architecture
+Follows the flow `request -> logger -> routes -> validation -> controller -> service -> model -> db` for both HTTP and Socket.IO interactions.
 
-**Testing**: Flood/rate-limit; moderation hooks.
+## Data
+- Redis key `presence:{userId}` with configurable TTL
+- PostgreSQL table `chat_messages` for message history
+
+## Running
+```
+PORT=4000 REDIS_URL=redis://localhost:6379 DATABASE_URL=postgresql://chat_user:chat_password@localhost:5432/chat_db npm start
+```
+
+## Notes
+- Basic in-memory rate limiting is applied to chat sends
+- Hooks for moderation and advanced rate limiting can be added
