@@ -29,6 +29,19 @@ services:
     networks:
       - chess-network
 
+  # Matchmaking Service
+  matchmaking:
+    build: ./matchmaking
+    ports:
+      - "8086:8086"
+    environment:
+      - PORT=8086
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - chess-network
+
   # Redis for caching and session management
   redis:
     image: redis:7-alpine
