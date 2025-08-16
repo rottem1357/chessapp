@@ -9,3 +9,11 @@
 **Integrations**: SES/SNS, FCM/APNs; topic fan-out.
 
 **Testing**: Dedup/idempotency; backoff.
+
+## Running
+
+```bash
+npm install
+npm test
+npm start
+```
